@@ -1,0 +1,4 @@
+# Optional: Twilio Media Streams → local STT (install in apps/api venv when using phone bridge)
+-r requirements.txt
+faster-whisper>=1.0.0
+pyttsx3>=2.90

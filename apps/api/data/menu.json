@@ -1,0 +1,59 @@
+{
+  "restaurant_name": "Mario's Pizza",
+  "items": {
+    "pizza_pepperoni": {
+      "id": "pizza_pepperoni",
+      "name": "Pepperoni Pizza",
+      "category": "pizza",
+      "sizes": ["small", "medium", "large"],
+      "modifiers_available": ["extra cheese", "light sauce", "well done", "no olives"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pizza_cheese": {
+      "id": "pizza_cheese",
+      "name": "Cheese Pizza",
+      "category": "pizza",
+      "sizes": ["small", "medium", "large"],
+      "modifiers_available": ["extra cheese", "light sauce", "well done"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "side_garlic_knots": {
+      "id": "side_garlic_knots",
+      "name": "Garlic Knots",
+      "category": "sides",
+      "sizes": ["6 piece", "12 piece"],
+      "modifiers_available": ["extra marinara"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "drink_coke": {
+      "id": "drink_coke",
+      "name": "Coke",
+      "category": "drinks",
+      "sizes": ["can", "20oz"],
+      "modifiers_available": [],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "burger_classic": {
+      "id": "burger_classic",
+      "name": "Classic Burger",
+      "category": "mains",
+      "sizes": ["single", "double"],
+      "modifiers_available": ["no onions", "add bacon", "no pickles"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "sandwich_chicken": {
+      "id": "sandwich_chicken",
+      "name": "Chicken Sandwich",
+      "category": "mains",
+      "sizes": [],
+      "modifiers_available": ["no mayo", "add hot sauce"],
+      "modifier_groups": [],
+      "unavailable": false
+    }
+  }
+}

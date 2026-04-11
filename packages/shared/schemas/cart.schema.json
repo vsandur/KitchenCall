@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kitchencall.local/schemas/cart.schema.json",
+  "title": "KitchenCall Cart",
+  "type": "object",
+  "required": ["order_id", "customer", "order_type", "items", "metadata"],
+  "properties": {
+    "order_id": { "type": "string" },
+    "customer": {
+      "type": "object",
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "phone": { "type": ["string", "null"] },
+        "address": { "type": ["string", "null"] }
+      }
+    },
+    "order_type": { "type": "string", "enum": ["pickup", "delivery"] },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "menu_item_id", "name", "qty", "modifiers"],
+        "properties": {
+          "id": { "type": "string" },
+          "menu_item_id": { "type": "string" },
+          "name": { "type": "string" },
+          "size": { "type": ["string", "null"] },
+          "qty": { "type": "integer", "minimum": 1 },
+          "modifiers": { "type": "array", "items": { "type": "string" } },
+          "special_instructions": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "missing_info": { "type": "array", "items": { "type": "string" } },
+        "last_action": { "type": ["string", "null"] },
+        "status": {
+          "type": "string",
+          "enum": ["building", "confirming", "completed", "cancelled"]
+        }
+      }
+    }
+  }
+}

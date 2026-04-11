@@ -1,0 +1,14 @@
+.DS_Store
+**/.DS_Store
+
+.venv/
+apps/agent/.venv/
+.tmp-lk/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+*.sqlite3
+*.db
+node_modules/
+apps/web/dist/

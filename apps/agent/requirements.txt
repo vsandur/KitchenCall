@@ -1,0 +1,5 @@
+# LiveKit worker: room audio -> STT -> KitchenCall POST /sessions/{id}/process-turn -> TTS
+livekit-agents[silero]~=1.0
+# Community Kyutai/Moshi STT plugin (module: lasuite.plugins.kyutai)
+livekit-plugins-kyutai-lasuite>=0.0.6
+httpx>=0.27.0
