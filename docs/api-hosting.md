@@ -67,22 +67,20 @@ Compare platforms on: **price**, **WS support**, **disk**, **region** (latency t
 
 Use a **Web Service** (not a Static Site). Render gives you **HTTPS** and supports **WebSockets**, which Twilio Media Streams need.
 
-1. **New → Web Service** → connect your Git repo (or deploy from `apps/api` as root).
-2. **Runtime:** **Docker** (root directory `apps/api` so the [`Dockerfile`](../apps/api/Dockerfile) is used) *or* **Python** with:
+1. **New → Web Service** → connect **`https://github.com/<you>/KitchenCall`** (repo root, not a `/tree/.../apps/api` URL).
+2. **Root Directory (required for this monorepo):** set to **`apps/api`** on the service **Settings** page. If this is empty, the build looks for a `Dockerfile` at the repo root and fails with *`open Dockerfile: no such file or directory`*. Alternatively, deploy from the repo’s **[`render.yaml`](../render.yaml)** (Blueprint) which sets `rootDir: apps/api`.
+3. **Runtime:** **Docker** (uses [`apps/api/Dockerfile`](../apps/api/Dockerfile)) *or* **Python** with:
    - **Build:** `pip install -r requirements.txt` (and `requirements-telephony.txt` if you use phone STT).
    - **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-3. **PORT:** Render sets **`PORT`** automatically. If you use the stock Docker image (which listens on **8000**), either:
-   - set **Docker Command** in the service to  
-     `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, **or**
-   - map Render’s port to 8000 in the dashboard if your plan allows a custom Docker command—simplest is overriding the start command as above so it matches **`$PORT`**.
-4. **Persistent disk (SQLite):** **Settings → Disks** → add a disk, mount path **`/app/data`** (same as `KITCHENCALL_DATABASE_PATH` in the Dockerfile). Without this, the DB resets when the instance restarts.
-5. **Environment:** add `KITCHENCALL_*` from [`apps/api/.env.example`](../apps/api/.env.example). For Twilio:
+4. **PORT:** The Dockerfile already uses **`${PORT:-8000}`**, so Docker deploys usually need **no** override. If you ever pin the image to port 8000 only, set the service **Docker Command** to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+5. **Persistent disk (SQLite):** **Settings → Disks** → add a disk, mount path **`/app/data`** (same as `KITCHENCALL_DATABASE_PATH` in the Dockerfile). Without this, the DB resets when the instance restarts.
+6. **Environment:** add `KITCHENCALL_*` from [`apps/api/.env.example`](../apps/api/.env.example). For Twilio:
    - `KITCHENCALL_TWILIO_BRIDGE_MODE=stream`
    - `KITCHENCALL_TWILIO_MEDIA_STREAM_URL=wss://<your-service>.onrender.com/telephony/twilio/media`  
      (or `wss://voice.yourdomain.com/...` after you attach a custom domain).
-6. **Twilio webhook:** `https://<same-host>/telephony/twilio/inbound`
-7. **Phone STT/TTS:** the slim Docker image has **no `ffmpeg`** and no `requirements-telephony.txt`. For real calls with local Whisper + PSTN TTS, extend the Dockerfile (install `ffmpeg`, `pip install -r requirements-telephony.txt`) or set **`KITCHENCALL_TWILIO_STREAM_STT_BACKEND=http`** and point at an external transcoder.
-8. **Free tier:** the service **spins down** when idle; first request (or an incoming call) can hit a **cold start**. For reliable Twilio demos, use a **paid** instance or keep the service warm.
+7. **Twilio webhook:** `https://<same-host>/telephony/twilio/inbound`
+8. **Phone STT/TTS:** the slim Docker image has **no `ffmpeg`** and no `requirements-telephony.txt`. For real calls with local Whisper + PSTN TTS, extend the Dockerfile (install `ffmpeg`, `pip install -r requirements-telephony.txt`) or set **`KITCHENCALL_TWILIO_STREAM_STT_BACKEND=http`** and point at an external transcoder.
+9. **Free tier:** the service **spins down** when idle; first request (or an incoming call) can hit a **cold start**. For reliable Twilio demos, use a **paid** instance or keep the service warm.
 
 **Custom domain:** Render dashboard → **Settings → Custom Domains** → add e.g. `api.yourdomain.com`, then set the same host in Twilio and in `KITCHENCALL_TWILIO_MEDIA_STREAM_URL` with **`wss://`**.
 
