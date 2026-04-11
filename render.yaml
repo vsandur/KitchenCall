@@ -1,10 +1,11 @@
-# Render Blueprint: API lives in apps/api (Dockerfile is there, not at repo root).
-# After push, use Render Dashboard → New → Blueprint, or set Root Directory manually on an existing Web Service.
+# Blueprint builds from repo root using ./Dockerfile (copies apps/api/*).
+# In the dashboard, leave Root Directory EMPTY so this Dockerfile is used; or use this Blueprint.
 # https://render.com/docs/monorepo-support
 
 services:
   - type: web
     name: kitchencall-api
     runtime: docker
-    rootDir: apps/api
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health

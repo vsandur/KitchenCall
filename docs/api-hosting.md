@@ -68,8 +68,11 @@ Compare platforms on: **price**, **WS support**, **disk**, **region** (latency t
 Use a **Web Service** (not a Static Site). Render gives you **HTTPS** and supports **WebSockets**, which Twilio Media Streams need.
 
 1. **New → Web Service** → connect **`https://github.com/<you>/KitchenCall`** (repo root, not a `/tree/.../apps/api` URL).
-2. **Root Directory (required for this monorepo):** set to **`apps/api`** on the service **Settings** page. If this is empty, the build looks for a `Dockerfile` at the repo root and fails with *`open Dockerfile: no such file or directory`*. Alternatively, deploy from the repo’s **[`render.yaml`](../render.yaml)** (Blueprint) which sets `rootDir: apps/api`.
-3. **Runtime:** **Docker** (uses [`apps/api/Dockerfile`](../apps/api/Dockerfile)) *or* **Python** with:
+2. **Root Directory + Docker:** Either  
+   - **Leave Root Directory empty** and use the repo-root **[`Dockerfile`](../Dockerfile)** (recommended for Render—it copies `apps/api/...` into the image), **or**  
+   - Set Root Directory to **`apps/api`** and use only **[`apps/api/Dockerfile`](../apps/api/Dockerfile)** (do **not** mix: an empty subdirectory + root Dockerfile causes *`Dockerfile: no such file`*).  
+   The **[`render.yaml`](../render.yaml)** Blueprint uses the root `Dockerfile` and `dockerContext: .`.
+3. **Runtime:** **Docker** *or* **Python** with:
    - **Build:** `pip install -r requirements.txt` (and `requirements-telephony.txt` if you use phone STT).
    - **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 4. **PORT:** The Dockerfile already uses **`${PORT:-8000}`**, so Docker deploys usually need **no** override. If you ever pin the image to port 8000 only, set the service **Docker Command** to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.

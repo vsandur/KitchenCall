@@ -1,0 +1,10 @@
+.git
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+*.db
+.env
+.tmp-lk
+apps/web/dist
+.DS_Store
