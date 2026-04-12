@@ -61,7 +61,7 @@ These map to the first three items in `docs/implementation-plan.md` production b
 - [x] Inbound call webhook/ingress creates KitchenCall session id (`POST /telephony/twilio/inbound`)  
 - [x] Twilio media websocket bridge contract is wired (`WS /telephony/twilio/media`) with session/call mapping and lifecycle logging  
 - [x] Manual verification script for mapping/status path (`poc/scripts/verify_twilio_mapping.py`)  
-- [x] Media Streams WS decodes inbound audio, optional STT (`faster_whisper` / HTTP), utterance segmentation → same `process-turn` as dashboard ([twilio-media-bridge.md](./twilio-media-bridge.md)); PSTN **TTS reply** via `both_tracks` + mu-law/`ffmpeg` ([twilio-phone-test.md](./twilio-phone-test.md)); voice **yes** in `confirming` finalizes order (same as `POST /finalize`)
+- [x] Media Streams WS decodes inbound audio, optional STT (`faster_whisper` / HTTP), utterance segmentation → same `process-turn` as dashboard ([twilio-media-bridge.md](./twilio-media-bridge.md)); PSTN **TTS reply** via bidirectional WS mu-law/`ffmpeg` ([twilio-phone-test.md](./twilio-phone-test.md)); voice **yes** in `confirming` finalizes order (same as `POST /finalize`)
 
 ### Ticket 2 — Live transfer handoff (replace stub)
 

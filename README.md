@@ -140,7 +140,7 @@ Bridge mode is configurable via API env:
 - `KITCHENCALL_TWILIO_MEDIA_STREAM_URL=wss://<your-public-host>/telephony/twilio/media` (when mode=`stream`; must be **wss** for Twilio)
 - `KITCHENCALL_TWILIO_SIP_URI=sip:...` (used when mode=`sip`)
 
-`stream` appends `session_id` and `call_sid` query params. Set `KITCHENCALL_TWILIO_STREAM_STT_BACKEND=faster_whisper` (install `requirements-telephony.txt`) or `http` to transcribe caller audio into cart updates. For the caller to **hear** assistant replies on the phone, use **`both_tracks`** (default) and install **`ffmpeg`**; see [docs/twilio-phone-test.md](docs/twilio-phone-test.md).
+`stream` uses `<Connect><Stream>` with a **query-free** `wss://…/telephony/twilio/media` URL (Twilio requirement); `session_id` and `call_sid` are passed as TwiML `<Parameter>`s. Set `KITCHENCALL_TWILIO_STREAM_STT_BACKEND=faster_whisper` (install `requirements-telephony.txt`) or `http` to transcribe caller audio into cart updates. For the caller to **hear** assistant replies on the phone, install **`ffmpeg`** (outbound mu-law over the same WebSocket); see [docs/twilio-phone-test.md](docs/twilio-phone-test.md).
 
 **Which number to call for testing:** the **Twilio phone number on your account** (Console → Phone Numbers → Active numbers). There is no project-wide shared test number; you dial **your** purchased or trial number after its voice webhook points at your public API.
 

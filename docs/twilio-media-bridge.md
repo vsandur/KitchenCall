@@ -24,7 +24,7 @@ Audio is buffered until **RMS silence** (~`KITCHENCALL_TWILIO_UTTERANCE_SILENCE_
 
 ## 4. Outbound voice (caller hears the assistant)
 
-Use **`KITCHENCALL_TWILIO_STREAM_TRACK=both_tracks`** (default) so Twilio sends **inbound** audio for STT and accepts **outbound** mu-law on the same stream.
+With **`<Connect><Stream>`**, Twilio only allows **`inbound_track`** on the stream. The API still sends **outbound** assistant audio on the **same WebSocket** as JSON `media` messages (bidirectional stream), not by subscribing to `both_tracks`.
 
 The API encodes assistant replies as **8 kHz mu-law** frames (via **`ffmpeg`**) after optional local TTS (`say` on macOS, `espeak-ng` / `espeak`, or `pyttsx3`). Control with:
 

@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 from html import escape
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, Response, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
@@ -60,19 +61,31 @@ def _ordering_greeting_twiml(*, restaurant_name: str) -> str:
     )
 
 
+def _twilio_connect_stream_url() -> str:
+    """
+    Twilio Stream `url` must not include query strings — use <Parameter> for metadata.
+    See: https://www.twilio.com/docs/voice/twiml/stream#url
+    """
+    raw = (settings.twilio_media_stream_url or "").strip()
+    if not raw:
+        return ""
+    parts = urlsplit(raw)
+    path = parts.path if parts.path else "/"
+    return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
+
+
 def _bridge_twiml(*, session_id: str, call_sid: str, restaurant_name: str) -> str:
     mode = (settings.twilio_bridge_mode or "say_only").strip().lower()
     if mode == "stream":
-        if not settings.twilio_media_stream_url:
+        stream_url = _twilio_connect_stream_url()
+        if not stream_url:
             return (
                 '<Say voice="alice">Sorry, voice bridge is not configured. Please call again later.</Say>'
                 "<Hangup/>"
             )
-        sep = "&" if "?" in settings.twilio_media_stream_url else "?"
-        stream_url = f"{settings.twilio_media_stream_url}{sep}session_id={session_id}&call_sid={call_sid}"
-        track = (settings.twilio_stream_track or "inbound_track").strip()
-        if track not in ("inbound_track", "outbound_track", "both_tracks"):
-            track = "inbound_track"
+        # Bidirectional <Connect><Stream> may only use inbound_track (not both_tracks).
+        # Outbound agent audio is sent as WebSocket media messages, not via track=.
+        track = "inbound_track"
         return (
             _ordering_greeting_twiml(restaurant_name=restaurant_name)
             + (

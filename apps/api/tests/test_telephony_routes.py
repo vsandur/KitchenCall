@@ -69,9 +69,11 @@ def test_twilio_inbound_stream_mode_includes_connect_stream() -> None:
         )
     assert r.status_code == 200
     assert "<Connect><Stream" in r.text
-    assert 'track="both_tracks"' in r.text
-    assert "session_id=" in r.text
-    assert "call_sid=CASTREAM1" in r.text
+    assert 'track="inbound_track"' in r.text
+    assert 'Stream url="wss://example.test/twilio-media"' in r.text
+    assert 'Parameter name="session_id"' in r.text
+    assert 'Parameter name="call_sid"' in r.text
+    assert 'value="CASTREAM1"' in r.text
 
 
 def test_twilio_inbound_sip_mode_includes_dial_sip() -> None:

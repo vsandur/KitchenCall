@@ -96,7 +96,7 @@ Set these (see `apps/api/.env.example` for all names):
 |----------|----------------|
 | `KITCHENCALL_TWILIO_BRIDGE_MODE` | `stream` |
 | `KITCHENCALL_TWILIO_MEDIA_STREAM_URL` | `wss://<your-public-host>/telephony/twilio/media` |
-| `KITCHENCALL_TWILIO_STREAM_TRACK` | `both_tracks` (default in code — needed for caller to hear TTS) |
+| `KITCHENCALL_TWILIO_STREAM_TRACK` | Ignored for `<Connect><Stream>` — Twilio allows only `inbound_track`; assistant audio to the caller is sent as WebSocket `media` messages (still needs **`ffmpeg`** for TTS). |
 | `KITCHENCALL_TWILIO_STREAM_STT_BACKEND` | `faster_whisper` or `http` |
 | `KITCHENCALL_TWILIO_STREAM_TTS_BACKEND` | `auto` (default: TTS on when STT is on) or `on` / `off` |
 | `KITCHENCALL_TWILIO_VOICE_GREETING` | Optional; empty uses built-in ordering intro before the stream |

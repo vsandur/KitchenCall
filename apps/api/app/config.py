@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     twilio_utterance_silence_ms: int = 700
     twilio_utterance_max_ms: int = 25_000
     twilio_utterance_rms_threshold: float = 350.0
-    # inbound_track | both_tracks — phone replies need both_tracks + ffmpeg TTS (see docs)
-    twilio_stream_track: str = "both_tracks"
+    # Reserved for future <Start> streams; <Connect><Stream> always uses inbound_track per Twilio.
+    twilio_stream_track: str = "inbound_track"
     # auto = enable outbound TTS when STT is on | off | on (force)
     twilio_stream_tts_backend: str = "auto"
     # Spoken before <Connect><Stream> (TwiML Say). Empty = use built-in ordering script.
