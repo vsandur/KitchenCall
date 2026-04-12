@@ -90,28 +90,32 @@ def _transcribe_http(pcm: bytes) -> str | None:
 
 
 def _transcribe_faster_whisper(pcm: bytes) -> str | None:
-    try:
-        import numpy as np
-    except ImportError as e:
-        raise RuntimeError("numpy required for faster-whisper path") from e
+    import tempfile
     model = _get_whisper()
-    audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
-    if audio.size < 160:
+    if len(pcm) < 320:
         return None
+    # Whisper expects 16 kHz; our PCM is 8 kHz from Twilio.  Write a proper WAV
+    # with the correct sample-rate header so faster-whisper (via ffmpeg) resamples.
+    wav_bytes = pcm16le_wav_bytes(pcm, sample_rate=8000)
     try:
-        segments, _info = model.transcribe(
-            audio,
-            language="en",
-            vad_filter=True,
-            beam_size=1,
-        )
-        parts = [s.text.strip() for s in segments if s.text and s.text.strip()]
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as f:
+            f.write(wav_bytes)
+            f.flush()
+            segments, _info = model.transcribe(
+                f.name,
+                language="en",
+                vad_filter=True,
+                beam_size=1,
+            )
+            parts = [s.text.strip() for s in segments if s.text and s.text.strip()]
     except Exception:
         logger.exception("faster-whisper transcribe failed")
         return None
     if not parts:
         return None
-    return " ".join(parts).strip()
+    result = " ".join(parts).strip()
+    logger.info("faster-whisper result: %s", result[:200])
+    return result
 
 
 def describe_stt_backend() -> str:
