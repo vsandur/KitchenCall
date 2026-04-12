@@ -131,6 +131,45 @@ def _bridge_twiml(*, session_id: str, call_sid: str, restaurant_name: str) -> st
     return _default_wait_message()
 
 
+@router.get("/debug-status")
+def twilio_debug_status() -> dict:
+    """Quick diagnostic: shows what STT/TTS/stream config the running instance sees."""
+    import shutil
+    import os
+
+    stt = (settings.twilio_stream_stt_backend or "off").strip().lower()
+    tts = (settings.twilio_stream_tts_backend or "auto").strip().lower()
+    mode = (settings.twilio_bridge_mode or "say_only").strip().lower()
+    media_url = (settings.twilio_media_stream_url or "").strip()
+    beep_path = (settings.menu_path.parent / "phone_beep.wav").resolve()
+    whisper_model = (settings.twilio_whisper_model or "base").strip()
+    logic = (settings.logic_extractor or "rules").strip().lower()
+
+    faster_whisper_available = False
+    try:
+        import faster_whisper  # noqa: F401
+        faster_whisper_available = True
+    except ImportError:
+        pass
+
+    return {
+        "bridge_mode": mode,
+        "media_stream_url": media_url,
+        "stt_backend": stt,
+        "stt_enabled": stt not in ("", "off", "none"),
+        "faster_whisper_installed": faster_whisper_available,
+        "whisper_model": whisper_model,
+        "tts_backend": tts,
+        "tts_enabled": _tts_out_enabled(),
+        "ffmpeg_on_path": shutil.which("ffmpeg") is not None,
+        "espeak_on_path": shutil.which("espeak-ng") is not None or shutil.which("espeak") is not None,
+        "beep_wav_exists": beep_path.is_file(),
+        "logic_extractor": logic,
+        "llm_base_url": (settings.llm_base_url or "").strip() if logic == "llm" else "(not used)",
+        "env_stt_raw": os.environ.get("KITCHENCALL_TWILIO_STREAM_STT_BACKEND", "(not set)"),
+    }
+
+
 @router.get("/assets/phone-beep.wav")
 def twilio_phone_beep_asset() -> FileResponse:
     """Short tone Twilio fetches over HTTPS (before <Connect><Stream>)."""
@@ -293,6 +332,14 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
         rms_threshold=settings.twilio_utterance_rms_threshold,
     )
     stt_on = _stt_enabled()
+    tts_on = _tts_out_enabled()
+    logger.info(
+        "twilio_media config: stt_on=%s tts_on=%s backend=%s whisper_model=%s rms_threshold=%s",
+        stt_on, tts_on,
+        settings.twilio_stream_stt_backend,
+        settings.twilio_whisper_model,
+        settings.twilio_utterance_rms_threshold,
+    )
 
     try:
         if call_sid:
@@ -305,7 +352,7 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
 
         if mapped_session_id and repo.get_session_row(db, mapped_session_id):
             extra = " stt=on" if stt_on else " stt=off"
-            tts = " tts=on" if _tts_out_enabled() else " tts=off"
+            tts = " tts=on" if tts_on else " tts=off"
             repo.append_transcript(
                 db,
                 mapped_session_id,
@@ -316,6 +363,10 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
 
         async def _handle_utterance_pcm(pcm_done: bytes) -> None:
             nonlocal stt_turns
+            logger.info(
+                "twilio_media utterance detected: %d bytes call_sid=%s session=%s",
+                len(pcm_done), call_sid, mapped_session_id,
+            )
             try:
                 reply = await asyncio.to_thread(run_telephony_utterance, mapped_session_id, pcm_done)
             except Exception:
@@ -325,8 +376,12 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                 buffer.reset()
                 return
             stt_turns += 1
+            logger.info(
+                "twilio_media STT turn #%d reply=%s call_sid=%s",
+                stt_turns, repr(reply[:120]) if reply else "(empty)", call_sid,
+            )
             buffer.reset()
-            if reply and stream_sid and _tts_out_enabled():
+            if reply and stream_sid and tts_on:
                 try:
                     await push_assistant_speech(websocket, stream_sid, reply)
                 except Exception:
@@ -345,7 +400,9 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                 continue
             try:
                 event = msg.get("event")
-                if event == "start":
+                if event == "connected":
+                    logger.info("twilio_media 'connected' event received")
+                elif event == "start":
                     start = msg.get("start") or {}
                     call_sid = start.get("callSid", call_sid)
                     custom = (start.get("customParameters") or {}) if isinstance(start, dict) else {}
@@ -364,8 +421,17 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                             repo.update_telephony_call_status(
                                 db, call_sid=call_sid, status="stream_started"
                             )
+                    logger.info(
+                        "twilio_media 'start' event: call_sid=%s stream_sid=%s session=%s custom=%s",
+                        call_sid, stream_sid, mapped_session_id, custom,
+                    )
                 elif event == "media":
                     media_chunks += 1
+                    if media_chunks in (1, 50, 200, 500):
+                        logger.info(
+                            "twilio_media chunk #%d call_sid=%s stt_on=%s session=%s",
+                            media_chunks, call_sid, stt_on, mapped_session_id,
+                        )
                     if stt_on and mapped_session_id:
                         media = msg.get("media") or {}
                         trk = media.get("track", "inbound")
