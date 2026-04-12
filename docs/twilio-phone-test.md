@@ -143,7 +143,11 @@ Use one **public hostname** for both sides (e.g. `kitchencall-api-xxxx.onrender.
 
 ### D. First call
 
-Dial your Twilio number → you should hear the **greeting** → with **STT on**, speak an order; confirm in **`GET /sessions`** or the dashboard.
+Dial your Twilio number → you should hear the **greeting** (menu vs. order options) → with **STT on**, say **menu** to hear items or place an order; confirm in **`GET /sessions`** or the dashboard.
+
+### E. Dashboard — phone call log
+
+The web dashboard polls **`GET /telephony/twilio/calls`**, which returns recent calls with a **timeline** (every transcript line, including **`call`** events and Twilio status updates) with **ISO timestamps** shown in your local time. Sessions that came from a phone call show a **Phone** badge in the session list.
 
 ## Local sanity checks (no phone)
 

@@ -88,6 +88,24 @@ def test_twilio_inbound_sip_mode_includes_dial_sip() -> None:
     assert "<Dial><Sip>sip:voice-agent@example.sip.twilio.com</Sip></Dial>" in r.text
 
 
+def test_list_twilio_calls_includes_call_timeline() -> None:
+    client = TestClient(app)
+    client.post(
+        "/telephony/twilio/inbound",
+        data={"CallSid": "CALIST99", "From": "+15551110001", "To": "+15551110002"},
+    )
+    r = client.get("/telephony/twilio/calls?limit=20")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    row = next((c for c in data if c.get("call_sid") == "CALIST99"), None)
+    assert row is not None
+    assert row["from_number"] == "+15551110001"
+    assert "timeline" in row
+    assert any(e.get("role") == "call" and "Phone call started" in e.get("text", "") for e in row["timeline"])
+    assert all("created_at" in e for e in row["timeline"])
+
+
 def test_twilio_media_websocket_updates_status_and_transcript() -> None:
     client = TestClient(app)
     client.post(

@@ -51,6 +51,7 @@ def process_user_final_text(
         cart=out.cart,
         errors=out.errors,
         transfer_requested=xfer,
+        catalog=catalog,
     )
     return out.cart, out.errors, intents, xfer, assistant_response
 

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import repo
 from app.db.database import get_db
+from app.services.menu_catalog import MenuCatalog
 from app.services.twilio_media_outbound import push_assistant_speech
 from app.services.twilio_media_turn import run_telephony_utterance
 from app.services.twilio_utterance import UtteranceBuffer
@@ -30,20 +31,34 @@ def _default_wait_message() -> str:
     )
 
 
-def _ordering_greeting_twiml() -> str:
-    """Spoken before Media Stream connects — real PSTN ordering intro."""
-    base = (settings.twilio_voice_greeting or "").strip()
-    if not base:
-        base = "Thanks for calling. I'm your phone ordering assistant."
-    hint = (
-        " After the tone, speak clearly. For example: large pepperoni pizza for pickup, "
-        "or tell me if you want delivery."
+def _ordering_greeting_twiml(*, restaurant_name: str) -> str:
+    """Spoken before Media Stream connects — warm intro + menu vs order choice."""
+    custom = (settings.twilio_voice_greeting or "").strip()
+    if custom:
+        welcome = escape(custom)
+    else:
+        name = (restaurant_name or "our restaurant").strip() or "our restaurant"
+        welcome = escape(
+            f"Thanks for calling {name}. "
+            "We are really happy you chose us today."
+        )
+    offer = escape(
+        "If you would like to hear our menu, just say menu. "
+        "If you are ready to order, tell me what you would like — for example, "
+        "a large pepperoni pizza for pickup, or delivery if you prefer."
     )
-    full = base + hint
-    return f'<Say voice="alice">{escape(full)}</Say><Pause length="1"/>'
+    closer = escape("Whenever you are ready, go ahead and speak after the tone.")
+    return (
+        f'<Say voice="alice">{welcome}</Say>'
+        '<Pause length="1"/>'
+        f'<Say voice="alice">{offer}</Say>'
+        '<Pause length="1"/>'
+        f'<Say voice="alice">{closer}</Say>'
+        '<Pause length="1"/>'
+    )
 
 
-def _bridge_twiml(*, session_id: str, call_sid: str) -> str:
+def _bridge_twiml(*, session_id: str, call_sid: str, restaurant_name: str) -> str:
     mode = (settings.twilio_bridge_mode or "say_only").strip().lower()
     if mode == "stream":
         if not settings.twilio_media_stream_url:
@@ -57,7 +72,7 @@ def _bridge_twiml(*, session_id: str, call_sid: str) -> str:
         if track not in ("inbound_track", "outbound_track", "both_tracks"):
             track = "inbound_track"
         return (
-            _ordering_greeting_twiml()
+            _ordering_greeting_twiml(restaurant_name=restaurant_name)
             + (
                 f'<Connect><Stream url="{escape(stream_url, quote=True)}" track="{escape(track, quote=True)}">'
                 f'<Parameter name="session_id" value="{escape(session_id, quote=True)}" />'
@@ -97,7 +112,23 @@ def twilio_inbound(
         status="inbound_received",
     )
 
-    body = _bridge_twiml(session_id=session.id, call_sid=CallSid)
+    catalog = MenuCatalog.load(settings.menu_path)
+    repo.append_transcript(
+        db,
+        session.id,
+        role="call",
+        text=(
+            f"Phone call started — from {From or 'unknown'}, to {To or 'unknown'}. "
+            f"Call SID {CallSid}."
+        ),
+        is_partial=False,
+    )
+
+    body = _bridge_twiml(
+        session_id=session.id,
+        call_sid=CallSid,
+        restaurant_name=catalog.restaurant_name,
+    )
     return Response(content=_twiml(body), media_type="application/xml")
 
 
@@ -111,7 +142,46 @@ def twilio_status_callback(
     if row is None:
         # status callback can race before inbound route in some setups; keep idempotent
         return {"ok": True, "mapped": False}
+    if repo.get_session_row(db, row.session_id):
+        repo.append_transcript(
+            db,
+            row.session_id,
+            role="call",
+            text=f"Twilio call status: {CallStatus} (call {CallSid}).",
+            is_partial=False,
+        )
     return {"ok": True, "mapped": True, "session_id": row.session_id, "status": row.status}
+
+
+@router.get("/calls")
+def list_twilio_calls(db: Session = Depends(get_db), limit: int = 50) -> list[dict]:
+    """Recent phone calls with full session timeline (transcript lines + timestamps) for the dashboard."""
+    rows = repo.list_telephony_calls(db, limit=min(limit, 100))
+    out: list[dict] = []
+    for r in rows:
+        tr = repo.list_transcripts(db, r.session_id)
+        out.append(
+            {
+                "call_sid": r.call_sid,
+                "session_id": r.session_id,
+                "from_number": r.from_number,
+                "to_number": r.to_number,
+                "status": r.status,
+                "created_at": r.created_at.isoformat(),
+                "updated_at": r.updated_at.isoformat(),
+                "timeline": [
+                    {
+                        "id": t.id,
+                        "role": t.role,
+                        "text": t.text,
+                        "created_at": t.created_at.isoformat(),
+                        "is_partial": t.is_partial,
+                    }
+                    for t in tr
+                ],
+            }
+        )
+    return out
 
 
 @router.get("/calls/{call_sid}")

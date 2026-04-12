@@ -146,6 +146,16 @@ def upsert_twilio_call(
     return row
 
 
+def list_telephony_calls(db: Session, *, limit: int = 50) -> list[TelephonyCall]:
+    q = select(TelephonyCall).order_by(TelephonyCall.updated_at.desc()).limit(limit)
+    return list(db.scalars(q).all())
+
+
+def session_ids_with_phone_calls(db: Session) -> set[str]:
+    q = select(TelephonyCall.session_id).distinct()
+    return set(db.scalars(q).all())
+
+
 def update_telephony_call_status(db: Session, *, call_sid: str, status: str) -> TelephonyCall | None:
     row = get_telephony_call_by_sid(db, call_sid)
     if row is None:

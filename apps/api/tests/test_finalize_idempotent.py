@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import app
 
 
@@ -19,7 +20,8 @@ def _drive_session_to_confirming(client: TestClient, sid: str) -> None:
         assert r.status_code == 200, (text, r.status_code, r.text)
 
 
-def test_finalize_twice_returns_same_order_and_flag() -> None:
+def test_finalize_twice_returns_same_order_and_flag(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "logic_extractor", "rules", raising=False)
     client = TestClient(app)
     sid = client.post("/sessions", json={}).json()["id"]
     _drive_session_to_confirming(client, sid)

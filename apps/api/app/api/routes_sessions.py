@@ -66,12 +66,14 @@ def create_session(db: Session = Depends(get_db)) -> dict:
 @router.get("")
 def list_sessions(db: Session = Depends(get_db), limit: int = 50) -> list[dict]:
     rows = repo.list_sessions(db, limit=limit)
+    phone_ids = repo.session_ids_with_phone_calls(db)
     return [
         {
             "id": r.id,
             "phase": r.phase,
             "transfer_requested": r.transfer_requested,
             "updated_at": r.updated_at.isoformat(),
+            "has_phone_call": r.id in phone_ids,
         }
         for r in rows
     ]

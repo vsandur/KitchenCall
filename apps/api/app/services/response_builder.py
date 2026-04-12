@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.schemas.action import Action, AskClarificationAction
 from app.schemas.cart import Cart
+from app.services.menu_catalog import MenuCatalog
 
 
 def _count_label(n: int, name: str) -> str:
@@ -26,6 +27,7 @@ def build_assistant_response(
     cart: Cart,
     errors: list[str],
     transfer_requested: bool,
+    catalog: MenuCatalog | None = None,
 ) -> str:
     if transfer_requested:
         return "No problem, I will get someone from staff for you."
@@ -79,6 +81,12 @@ def build_assistant_response(
         return "Okay, I cancelled that order."
 
     if "answer_menu_question" in intents:
-        return "Anything else I can help with on the menu?"
+        if catalog is not None:
+            menu_text = catalog.spoken_menu_summary()
+            return (
+                f"Happy to help. Here is our menu today. {menu_text} "
+                "When you are ready, tell me what you would like, or say menu again if you need a reminder."
+            )
+        return "I can walk you through the menu. What kind of item are you in the mood for?"
 
     return "Got it. Anything else for your order?"

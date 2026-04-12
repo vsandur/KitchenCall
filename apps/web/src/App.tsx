@@ -3,7 +3,13 @@ import { Room, RoomEvent } from "livekit-client";
 
 const API = "/api";
 
-type SessionRow = { id: string; phase: string; transfer_requested?: boolean; updated_at?: string };
+type SessionRow = {
+  id: string;
+  phase: string;
+  transfer_requested?: boolean;
+  updated_at?: string;
+  has_phone_call?: boolean;
+};
 type TranscriptLine = {
   id: number;
   role: string;
@@ -24,6 +30,25 @@ type SessionDetail = {
 };
 
 type OrderRow = { id: number; session_id: string; created_at: string; cart: Record<string, unknown> };
+
+type CallTimelineEntry = {
+  id: number;
+  role: string;
+  text: string;
+  created_at: string;
+  is_partial: boolean;
+};
+
+type PhoneCallRecord = {
+  call_sid: string;
+  session_id: string;
+  from_number: string;
+  to_number: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  timeline: CallTimelineEntry[];
+};
 type AgentStatus = {
   available: boolean;
   reason: string;
@@ -188,6 +213,11 @@ function CartSummary({ cart }: { cart: Record<string, unknown> }) {
   );
 }
 
+function formatWhen(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
 function TranscriptThread({ lines }: { lines: TranscriptLine[] }) {
   if (!lines.length) {
     return <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.875rem" }}>No messages yet.</p>;
@@ -201,9 +231,15 @@ function TranscriptThread({ lines }: { lines: TranscriptLine[] }) {
             ? "msg msg--user"
             : role === "assistant" || role === "staff" || role === "system"
               ? "msg msg--assistant"
-              : "msg msg--system";
+              : role === "call"
+                ? "msg msg--call"
+                : "msg msg--system";
         return (
           <div key={t.id} className={t.is_partial ? `${cls} msg-partial` : cls}>
+            <span className="msg-meta">
+              <span className="msg-role">{t.role}</span>
+              <time dateTime={t.created_at}>{formatWhen(t.created_at)}</time>
+            </span>
             <span className="sr-only">{t.role}: </span>
             {t.text}
             {t.is_partial ? " …" : ""}
@@ -211,6 +247,51 @@ function TranscriptThread({ lines }: { lines: TranscriptLine[] }) {
         );
       })}
     </div>
+  );
+}
+
+function PhoneCallLog({ calls, onOpenSession }: { calls: PhoneCallRecord[]; onOpenSession: (id: string) => void }) {
+  if (!calls.length) {
+    return (
+      <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.875rem" }}>
+        No phone calls yet. When customers call your Twilio number, each call appears here with a full timeline.
+      </p>
+    );
+  }
+  return (
+    <ul className="call-log-list">
+      {calls.map((c) => (
+        <li key={c.call_sid} className="call-log-card">
+          <div className="call-log-head">
+            <div>
+              <strong className="call-log-sid">{c.call_sid}</strong>
+              <span className="call-log-status">{c.status}</span>
+            </div>
+            <button type="button" className="btn-ghost btn-tiny" onClick={() => onOpenSession(c.session_id)}>
+              Open session
+            </button>
+          </div>
+          <p className="call-log-meta">
+            From <code>{c.from_number || "—"}</code> · To <code>{c.to_number || "—"}</code>
+          </p>
+          <p className="call-log-meta">
+            Started {formatWhen(c.created_at)} · Updated {formatWhen(c.updated_at)}
+          </p>
+          <p className="section-title" style={{ marginTop: "0.75rem", marginBottom: "0.35rem" }}>
+            Call timeline
+          </p>
+          <ol className="call-timeline">
+            {c.timeline.map((step) => (
+              <li key={step.id} className="call-timeline-step">
+                <div className="call-timeline-when">{formatWhen(step.created_at)}</div>
+                <div className="call-timeline-role">{step.role}</div>
+                <div className="call-timeline-text">{step.text}</div>
+              </li>
+            ))}
+          </ol>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -266,6 +347,7 @@ export default function App() {
   const [lkError, setLkError] = useState<string | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
   const [toast, setToast] = useState<Toast>(null);
+  const [phoneCalls, setPhoneCalls] = useState<PhoneCallRecord[]>([]);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const partialTimerRef = useRef<number | null>(null);
@@ -303,11 +385,24 @@ export default function App() {
       .catch(console.error);
   }, []);
 
+  const refreshPhoneCalls = useCallback(() => {
+    fetch(`${API}/telephony/twilio/calls`)
+      .then((r) => r.json())
+      .then((data: PhoneCallRecord[]) => setPhoneCalls(Array.isArray(data) ? data : []))
+      .catch(() => setPhoneCalls([]));
+  }, []);
+
   useEffect(() => {
     setMicSupported(Boolean(getSpeechRecognitionCtor()));
     refreshSessions();
     refreshOrders();
-  }, [refreshSessions, refreshOrders]);
+    refreshPhoneCalls();
+  }, [refreshSessions, refreshOrders, refreshPhoneCalls]);
+
+  useEffect(() => {
+    const id = setInterval(refreshPhoneCalls, 4000);
+    return () => clearInterval(id);
+  }, [refreshPhoneCalls]);
 
   useEffect(() => {
     const tick = () => {
@@ -349,17 +444,18 @@ export default function App() {
     return () => clearInterval(id);
   }, [sel]);
 
-  const createSession = () => {
+  const createSession = useCallback(() => {
     fetch(`${API}/sessions`, { method: "POST" })
       .then((r) => r.json())
       .then((x: SessionDetail) => {
         setSel(x.id);
         setDetail(x);
         refreshSessions();
+        refreshPhoneCalls();
         showToast({ kind: "ok", message: "New order started. Say or type what you’d like." });
       })
       .catch(console.error);
-  };
+  }, [refreshPhoneCalls, refreshSessions, showToast]);
 
   const postPartial = useCallback((text: string) => {
     if (!sel || !text.trim()) return;
@@ -566,6 +662,12 @@ export default function App() {
                         <span className="session-item-id">{s.id.slice(0, 8)}…</span>
                         <span className="session-item-meta">
                           {humanPhase(s.phase)}
+                          {s.has_phone_call ? (
+                            <>
+                              {" "}
+                              <span className="badge badge--phone">Phone</span>
+                            </>
+                          ) : null}
                           {s.transfer_requested ? (
                             <>
                               {" "}
@@ -728,6 +830,21 @@ export default function App() {
             </div>
           </article>
         </div>
+
+        <section className="orders-section panel">
+          <div className="panel-header">
+            <span>Phone calls</span>
+            <span className="badge">{phoneCalls.length}</span>
+          </div>
+          <div className="panel-body">
+            <div className="btn-row" style={{ marginBottom: "1rem" }}>
+              <button type="button" className="btn-ghost" onClick={refreshPhoneCalls}>
+                Refresh calls
+              </button>
+            </div>
+            <PhoneCallLog calls={phoneCalls} onOpenSession={(id) => setSel(id)} />
+          </div>
+        </section>
 
         <section className="orders-section panel">
           <div className="panel-header">

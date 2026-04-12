@@ -6,6 +6,7 @@ import re
 
 from app.schemas.action import (
     AddItemAction,
+    AnswerMenuQuestionAction,
     AskClarificationAction,
     CancelOrderAction,
     ConfirmOrderAction,
@@ -54,6 +55,13 @@ def extract_actions(text: str, cart: Cart, catalog: MenuCatalog) -> list:
     actions: list = []
     if not t:
         return actions
+
+    if re.search(
+        r"\b(menu|read (me )?the menu|hear the menu|what'?s? on the menu|what do you (have|offer)|"
+        r"show (me )?the menu|list (the )?menu|tell me (the )?menu|options|what'?s? available)\b",
+        t,
+    ):
+        return [AnswerMenuQuestionAction(topic="overview")]
 
     if re.search(r"\b(speak to|talk to a|talk to the|real person|human being|manager)\b", t):
         return [TransferToStaffAction(reason=text.strip()[:200])]

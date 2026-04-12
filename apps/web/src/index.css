@@ -314,6 +314,16 @@ button:disabled {
   color: var(--warning);
 }
 
+.badge--phone {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.btn-tiny {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+}
+
 /* ——— Workspace ——— */
 .phase-banner {
   display: flex;
@@ -483,9 +493,131 @@ details.raw-json pre {
   padding: 0.25rem;
 }
 
+.msg--call {
+  align-self: stretch;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+.msg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.msg-meta time {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-secondary);
+}
+
+.msg-role {
+  color: var(--accent);
+}
+
 .msg-partial {
   opacity: 0.75;
   font-style: italic;
+}
+
+/* ——— Phone call log ——— */
+.call-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.call-log-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  background: var(--surface);
+}
+
+.call-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.call-log-sid {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+}
+
+.call-log-status {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.call-log-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.call-log-meta code {
+  font-size: 0.75rem;
+}
+
+.call-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.call-timeline-step {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8125rem;
+}
+
+.call-timeline-step:last-child {
+  border-bottom: none;
+}
+
+.call-timeline-when {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.call-timeline-role {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 0.15rem;
+}
+
+.call-timeline-text {
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
 }
 
 /* ——— Input row ——— */

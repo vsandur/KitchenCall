@@ -29,6 +29,22 @@ class MenuCatalog(BaseModel):
     restaurant_name: str = "Demo Restaurant"
     items: dict[str, MenuItemDef]
 
+    def spoken_menu_summary(self, *, max_items_per_category: int = 12) -> str:
+        """Short text for voice / assistant readout of available items."""
+        by_cat: dict[str, list[str]] = {}
+        for it in self.items.values():
+            if it.unavailable:
+                continue
+            by_cat.setdefault(it.category, []).append(it.name)
+        chunks: list[str] = []
+        for cat in sorted(by_cat.keys()):
+            names = sorted(by_cat[cat])[:max_items_per_category]
+            tail = ""
+            if len(by_cat[cat]) > len(names):
+                tail = f", and {len(by_cat[cat]) - len(names)} more"
+            chunks.append(f"{cat}: {', '.join(names)}{tail}")
+        return ". ".join(chunks) + "."
+
     @classmethod
     def load(cls, path: Path) -> MenuCatalog:
         raw = json.loads(path.read_text(encoding="utf-8"))
