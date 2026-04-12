@@ -103,6 +103,48 @@ Set these (see `apps/api/.env.example` for all names):
 
 Start the API (e.g. `uvicorn` on the port your tunnel forwards).
 
+## Checklist — Render (host) vs Twilio (phone)
+
+Use one **public hostname** for both sides (e.g. `kitchencall-api-xxxx.onrender.com`). Replace `YOUR-HOST` below with that host **without** `https://` or `wss://`.
+
+### A. Render (KitchenCall API)
+
+1. **Deploy** the repo; confirm **`https://YOUR-HOST/health`** returns `{"status":"ok"}`.
+2. **Root Directory:** leave **empty** if you use the repo-root [`Dockerfile`](../Dockerfile) (see [api-hosting.md](./api-hosting.md)).
+3. **Environment** (Dashboard → your Web Service → **Environment**), add at least:
+
+   | Key | Value |
+   |-----|--------|
+   | `KITCHENCALL_TWILIO_BRIDGE_MODE` | `stream` |
+   | `KITCHENCALL_TWILIO_MEDIA_STREAM_URL` | `wss://YOUR-HOST/telephony/twilio/media` |
+
+   Optional: `KITCHENCALL_CORS_ORIGINS` = your dashboard URL(s), comma-separated.  
+   Optional: `KITCHENCALL_TWILIO_STREAM_STT_BACKEND` = `faster_whisper` or `http` (with `KITCHENCALL_TWILIO_STT_HTTP_URL` if `http`). Default `off` = stream works but **no speech-to-cart** until you enable STT.
+
+4. **Save** env vars and **trigger a deploy** (or wait for auto-deploy).
+5. **Persistent disk (recommended):** **Settings → Disks** → mount path **`/app/data`** so SQLite survives restarts.
+
+### B. Twilio Console
+
+1. **Phone number** with Voice (trial numbers work for testing).
+2. **Phone Numbers → your number → Voice & Fax:**
+   - **A call comes in:** **Webhook**, **HTTP POST**  
+     `https://YOUR-HOST/telephony/twilio/inbound`
+   - **Call status changes (optional):** **HTTP POST**  
+     `https://YOUR-HOST/telephony/twilio/status`
+3. **Trial account:** verify the **caller ID** you will call from ([Twilio trial rules](https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account)).
+
+### C. Same host everywhere
+
+| Where | URL |
+|-------|-----|
+| Twilio Voice webhook | `https://YOUR-HOST/telephony/twilio/inbound` |
+| Render env `KITCHENCALL_TWILIO_MEDIA_STREAM_URL` | `wss://YOUR-HOST/telephony/twilio/media` |
+
+### D. First call
+
+Dial your Twilio number → you should hear the **greeting** → with **STT on**, speak an order; confirm in **`GET /sessions`** or the dashboard.
+
 ## Local sanity checks (no phone)
 
 ```bash
@@ -119,6 +161,13 @@ The second script needs `ffmpeg` and a local TTS backend (`say` on macOS, or `es
 3. Speak an order (e.g. menu items, then **“that’s all”** when ready).
 4. When the assistant asks you to confirm, say **yes** — the session **finalizes on the server** (same effect as `POST /sessions/{id}/finalize` with `affirmed: true`) and you should hear a short thank-you line if TTS is enabled.
 5. Confirm in the **dashboard** or `GET /sessions/{id}` / `GET /orders` that the cart reached `completed` and an order row exists.
+
+## Troubleshooting: call drops right after the greeting / when you start talking
+
+1. **Twilio Debugger** (Console → **Monitor → Logs → Debugger**) — note any **319xx** / stream errors.
+2. **Render → Logs** — look for `telephony STT failed`, `ImportError`, `faster-whisper`, or WebSocket tracebacks.
+3. **STT on Render without telephony deps** — the default API Docker image only installs `requirements.txt` (no **`faster-whisper`** / **`numpy`**). If `KITCHENCALL_TWILIO_STREAM_STT_BACKEND=faster_whisper`, either install [requirements-telephony.txt](../apps/api/requirements-telephony.txt) in the image or use **`http`** STT, or set **`KITCHENCALL_TWILIO_STREAM_STT_BACKEND=off`** until the image is extended. The API now catches STT failures so the **call should stay up** even if STT misconfigured (you just won’t get speech-to-cart until STT works).
+4. **Cold start (free tier)** — first call after sleep can be flaky; retry or use a paid instance.
 
 ## See also
 

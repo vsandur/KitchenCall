@@ -69,6 +69,7 @@ def test_media_stream_with_stt_runs_process_turn(monkeypatch) -> None:
 
 def test_media_stream_yes_while_confirming_finalizes_order(monkeypatch) -> None:
     """Phone STT 'yes' in confirming state saves order (same as POST /finalize)."""
+    monkeypatch.setattr(settings, "logic_extractor", "rules", raising=False)
     monkeypatch.setattr(asyncio, "to_thread", _immediate_to_thread)
     monkeypatch.setattr("app.api.routes_telephony.UtteranceBuffer", _StubUtteranceBuffer)
     monkeypatch.setattr(

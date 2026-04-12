@@ -21,7 +21,12 @@ def run_telephony_utterance(session_id: str, pcm16_8k_le: bytes) -> str | None:
     Transcribe PCM, run the same process-turn as the dashboard, persist transcripts.
     Returns assistant spoken reply text (for outbound TTS), or None.
     """
-    text = transcribe_pcm16_8k(pcm16_8k_le)
+    try:
+        text = transcribe_pcm16_8k(pcm16_8k_le)
+    except Exception:
+        # Uncaught exceptions here kill the Twilio Media Stream WebSocket and drop the call.
+        logger.exception("telephony STT failed session_id=%s", session_id)
+        return None
     if not text or not text.strip():
         return None
     db = get_session_factory()()

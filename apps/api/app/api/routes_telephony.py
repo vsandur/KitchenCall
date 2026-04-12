@@ -193,11 +193,23 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
 
         async def _handle_utterance_pcm(pcm_done: bytes) -> None:
             nonlocal stt_turns
-            reply = await asyncio.to_thread(run_telephony_utterance, mapped_session_id, pcm_done)
+            try:
+                reply = await asyncio.to_thread(run_telephony_utterance, mapped_session_id, pcm_done)
+            except Exception:
+                logger.exception(
+                    "twilio_media utterance handler failed call_sid=%s", call_sid or "unknown"
+                )
+                buffer.reset()
+                return
             stt_turns += 1
             buffer.reset()
             if reply and stream_sid and _tts_out_enabled():
-                await push_assistant_speech(websocket, stream_sid, reply)
+                try:
+                    await push_assistant_speech(websocket, stream_sid, reply)
+                except Exception:
+                    logger.exception(
+                        "twilio_media TTS push failed call_sid=%s", call_sid or "unknown"
+                    )
             buffer.reset()
 
         while True:

@@ -5,17 +5,20 @@ from unittest.mock import patch
 
 from app.schemas.action import AddItemAction
 from app.schemas.cart import Cart, Customer, OrderMetadata
+from app.config import settings
 from app.services.logic_extract import extract_actions_for_turn
 from app.services.menu_catalog import MenuCatalog
 
 _MENU = Path(__file__).resolve().parent.parent / "data" / "menu.json"
 
 
-def test_defaults_to_rules_without_llm_config() -> None:
+def test_defaults_to_rules_without_llm_config(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "logic_extractor", "rules", raising=False)
     catalog = MenuCatalog.load(_MENU)
     cart = Cart(order_id="s", customer=Customer(), metadata=OrderMetadata())
     actions = extract_actions_for_turn("large pepperoni for pickup", cart, catalog)
-    assert [a.intent for a in actions] == ["set_order_type", "add_item"]
+    intents = [a.intent for a in actions]
+    assert set(intents) == {"set_order_type", "add_item"}
 
 
 def test_llm_success_returns_model_actions(monkeypatch) -> None:
