@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     twilio_stt_http_url: str = ""
     twilio_stt_http_timeout_seconds: float = 60.0
     twilio_whisper_model: str = "tiny"
+    # API key for cloud STT (Deepgram or OpenAI Whisper API)
+    stt_api_key: str = ""
     twilio_utterance_silence_ms: int = 1200
     twilio_utterance_max_ms: int = 5_000
     twilio_utterance_rms_threshold: float = 500.0

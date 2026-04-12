@@ -61,12 +61,92 @@ def transcribe_pcm16_8k(pcm: bytes) -> str | None:
     backend = (settings.twilio_stream_stt_backend or "off").strip().lower()
     if backend in ("", "off", "none"):
         return None
+    if backend == "deepgram":
+        return _transcribe_deepgram(pcm)
+    if backend == "openai":
+        return _transcribe_openai(pcm)
     if backend == "http":
         return _transcribe_http(pcm)
     if backend in ("faster_whisper", "whisper", "faster-whisper"):
         return _transcribe_faster_whisper(pcm)
     logger.warning("Unknown twilio_stream_stt_backend: %s", backend)
     return None
+
+
+def _transcribe_deepgram(pcm: bytes) -> str | None:
+    """Deepgram Nova-2 — fast, accurate, built for telephony audio."""
+    import time
+
+    api_key = (settings.stt_api_key or "").strip()
+    if not api_key:
+        logger.error("stt_api_key not set — required for Deepgram backend")
+        return None
+    wav = pcm16le_wav_bytes(pcm, sample_rate=8000)
+    duration_s = len(pcm) / (8000 * 2)
+    logger.info("deepgram STT input: %.1f s (%d bytes PCM)", duration_s, len(pcm))
+    t0 = time.monotonic()
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            r = client.post(
+                "https://api.deepgram.com/v1/listen",
+                params={"model": "nova-2", "language": "en", "smart_format": "true"},
+                headers={
+                    "Authorization": f"Token {api_key}",
+                    "Content-Type": "audio/wav",
+                },
+                content=wav,
+            )
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        logger.exception("Deepgram STT request failed")
+        return None
+    elapsed = time.monotonic() - t0
+    try:
+        transcript = data["results"]["channels"][0]["alternatives"][0]["transcript"]
+    except (KeyError, IndexError):
+        logger.info("deepgram: no transcript in response after %.1f s", elapsed)
+        return None
+    text = (transcript or "").strip()
+    if not text:
+        logger.info("deepgram: empty transcript after %.1f s", elapsed)
+        return None
+    logger.info("deepgram result (%.1f s): %s", elapsed, text[:200])
+    return text
+
+
+def _transcribe_openai(pcm: bytes) -> str | None:
+    """OpenAI Whisper API — cloud-hosted, no local GPU needed."""
+    import time
+
+    api_key = (settings.stt_api_key or "").strip()
+    if not api_key:
+        logger.error("stt_api_key not set — required for OpenAI Whisper backend")
+        return None
+    wav = pcm16le_wav_bytes(pcm, sample_rate=8000)
+    duration_s = len(pcm) / (8000 * 2)
+    logger.info("openai STT input: %.1f s (%d bytes PCM)", duration_s, len(pcm))
+    t0 = time.monotonic()
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            r = client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                files={"file": ("chunk.wav", wav, "audio/wav")},
+                data={"model": "whisper-1", "language": "en"},
+            )
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        logger.exception("OpenAI Whisper STT request failed")
+        return None
+    elapsed = time.monotonic() - t0
+    text = (data.get("text") or "").strip() if isinstance(data, dict) else ""
+    if not text:
+        logger.info("openai: empty transcript after %.1f s", elapsed)
+        return None
+    logger.info("openai result (%.1f s): %s", elapsed, text[:200])
+    return text
 
 
 def _transcribe_http(pcm: bytes) -> str | None:

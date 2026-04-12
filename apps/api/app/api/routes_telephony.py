@@ -140,11 +140,13 @@ def twilio_debug_status() -> dict:
     except ImportError:
         pass
 
+    stt_key_set = bool((settings.stt_api_key or "").strip())
     return {
         "bridge_mode": mode,
         "media_stream_url": media_url,
         "stt_backend": stt,
         "stt_enabled": stt not in ("", "off", "none"),
+        "stt_api_key_set": stt_key_set,
         "faster_whisper_installed": faster_whisper_available,
         "whisper_model": whisper_model,
         "tts_backend": tts,
