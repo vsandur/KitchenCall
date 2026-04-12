@@ -14,6 +14,9 @@ from app.db.database import init_db
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    # Pre-download/load the STT model so the first phone call isn't blocked
+    from app.services.telephony_stt import warmup_stt
+    warmup_stt()
     yield
 
 

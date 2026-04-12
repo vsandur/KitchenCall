@@ -13,7 +13,7 @@ COPY data ./data
 ENV KITCHENCALL_MENU_PATH=/app/data/menu.json
 ENV KITCHENCALL_DATABASE_PATH=/app/data/kitchencall.db
 ENV KITCHENCALL_TWILIO_STREAM_STT_BACKEND=faster_whisper
-ENV KITCHENCALL_TWILIO_WHISPER_MODEL=base
+ENV KITCHENCALL_TWILIO_WHISPER_MODEL=tiny
 
 EXPOSE 8000
 # Render and other hosts set PORT; local Docker defaults to 8000

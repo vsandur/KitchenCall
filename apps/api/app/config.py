@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     twilio_stream_stt_backend: str = "off"
     twilio_stt_http_url: str = ""
     twilio_stt_http_timeout_seconds: float = 60.0
-    twilio_whisper_model: str = "base"
+    twilio_whisper_model: str = "tiny"
     twilio_utterance_silence_ms: int = 700
     twilio_utterance_max_ms: int = 25_000
     twilio_utterance_rms_threshold: float = 280.0

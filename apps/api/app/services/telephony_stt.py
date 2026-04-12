@@ -24,9 +24,22 @@ def _get_whisper():
         raise RuntimeError(
             "faster-whisper is not installed. Run: pip install faster-whisper"
         ) from e
-    name = (settings.twilio_whisper_model or "base").strip()
+    name = (settings.twilio_whisper_model or "tiny").strip()
+    logger.info("Loading Whisper model '%s' (first-time may download ~75-150 MB)…", name)
     _whisper_model = WhisperModel(name, device="cpu", compute_type="int8")
+    logger.info("Whisper model '%s' loaded successfully.", name)
     return _whisper_model
+
+
+def warmup_stt() -> None:
+    """Pre-load the Whisper model so the first call isn't blocked by a download."""
+    backend = (settings.twilio_stream_stt_backend or "off").strip().lower()
+    if backend not in ("faster_whisper", "whisper", "faster-whisper"):
+        return
+    try:
+        _get_whisper()
+    except Exception:
+        logger.exception("Whisper model warm-up failed (STT will retry on first call)")
 
 
 def pcm16le_wav_bytes(pcm: bytes, sample_rate: int = 8000) -> bytes:
