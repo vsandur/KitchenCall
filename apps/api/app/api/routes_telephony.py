@@ -167,6 +167,9 @@ def twilio_debug_status() -> dict:
         "logic_extractor": logic,
         "llm_base_url": (settings.llm_base_url or "").strip() if logic == "llm" else "(not used)",
         "env_stt_raw": os.environ.get("KITCHENCALL_TWILIO_STREAM_STT_BACKEND", "(not set)"),
+        "utterance_max_ms": settings.twilio_utterance_max_ms,
+        "utterance_silence_ms": settings.twilio_utterance_silence_ms,
+        "utterance_rms_threshold": settings.twilio_utterance_rms_threshold,
     }
 
 

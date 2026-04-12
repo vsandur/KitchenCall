@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     twilio_stt_http_timeout_seconds: float = 60.0
     twilio_whisper_model: str = "tiny"
     twilio_utterance_silence_ms: int = 1200
-    twilio_utterance_max_ms: int = 10_000
+    twilio_utterance_max_ms: int = 5_000
     twilio_utterance_rms_threshold: float = 500.0
     # Reserved for future <Start> streams; <Connect><Stream> always uses inbound_track per Twilio.
     twilio_stream_track: str = "inbound_track"
