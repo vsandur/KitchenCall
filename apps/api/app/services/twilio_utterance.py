@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.services.twilio_mulaw import mulaw_payload_to_pcm16_le, rms_pcm16_le
+
+logger = logging.getLogger(__name__)
 
 
 class UtteranceBuffer:
@@ -30,6 +34,7 @@ class UtteranceBuffer:
         self._low_rms_streak = 0
         self._high_rms_streak = 0
         self._ever_voice = False
+        self._total_chunks = 0
 
     def add_mulaw(self, mulaw: bytes) -> bytes | None:
         """
@@ -39,6 +44,15 @@ class UtteranceBuffer:
             return None
         pcm = mulaw_payload_to_pcm16_le(mulaw)
         rms = rms_pcm16_le(pcm)
+        self._total_chunks += 1
+
+        if self._total_chunks <= 10 or self._total_chunks % 250 == 0:
+            logger.info(
+                "utterance_rms chunk=%d rms=%.0f threshold=%.0f voice=%s low=%d high=%d pcm=%d",
+                self._total_chunks, rms, self._rms_threshold,
+                self._ever_voice, self._low_rms_streak, self._high_rms_streak,
+                len(self._pcm),
+            )
 
         if rms >= self._rms_threshold:
             self._high_rms_streak += 1
@@ -52,9 +66,11 @@ class UtteranceBuffer:
         self._pcm.extend(pcm)
 
         if len(self._pcm) >= self._max_pcm and self._ever_voice:
+            logger.info("utterance_flush reason=max_duration pcm=%d", len(self._pcm))
             return self._take_utterance()
 
         if self._ever_voice and self._low_rms_streak >= self._silence_chunks:
+            logger.info("utterance_flush reason=silence pcm=%d", len(self._pcm))
             return self._take_utterance()
 
         return None
