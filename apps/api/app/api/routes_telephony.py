@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 from html import escape
 
 from fastapi import APIRouter, Depends, Form, Response, WebSocket, WebSocketDisconnect
@@ -17,6 +18,7 @@ from app.services.twilio_media_turn import run_telephony_utterance
 from app.services.twilio_utterance import UtteranceBuffer
 
 router = APIRouter(prefix="/telephony/twilio", tags=["telephony"])
+logger = logging.getLogger(__name__)
 
 
 def _twiml(body: str) -> str:
@@ -226,6 +228,11 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
     await websocket.accept()
     call_sid = websocket.query_params.get("call_sid", "")
     session_hint = websocket.query_params.get("session_id", "")
+    logger.info(
+        "twilio_media websocket accepted call_sid=%s session_hint=%s",
+        call_sid or "unknown",
+        session_hint or "none",
+    )
     media_chunks = 0
     stt_turns = 0
     mapped_session_id = ""
@@ -288,51 +295,62 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                 msg = json.loads(raw)
             except Exception:
                 continue
-            event = msg.get("event")
-            if event == "start":
-                start = msg.get("start") or {}
-                call_sid = start.get("callSid", call_sid)
-                custom = (start.get("customParameters") or {}) if isinstance(start, dict) else {}
-                stream_sid = (
-                    start.get("streamSid", "")
-                    or (custom.get("streamSid", "") if isinstance(custom, dict) else "")
-                    or msg.get("streamSid", "")
-                    or stream_sid
+            if not isinstance(msg, dict):
+                continue
+            try:
+                event = msg.get("event")
+                if event == "start":
+                    start = msg.get("start") or {}
+                    call_sid = start.get("callSid", call_sid)
+                    custom = (start.get("customParameters") or {}) if isinstance(start, dict) else {}
+                    stream_sid = (
+                        start.get("streamSid", "")
+                        or (custom.get("streamSid", "") if isinstance(custom, dict) else "")
+                        or msg.get("streamSid", "")
+                        or stream_sid
+                    )
+                    if not mapped_session_id and isinstance(custom, dict):
+                        mapped_session_id = custom.get("session_id", "") or mapped_session_id
+                    if call_sid:
+                        row = repo.get_telephony_call_by_sid(db, call_sid)
+                        if row is not None:
+                            mapped_session_id = row.session_id
+                            repo.update_telephony_call_status(
+                                db, call_sid=call_sid, status="stream_started"
+                            )
+                elif event == "media":
+                    media_chunks += 1
+                    if stt_on and mapped_session_id:
+                        media = msg.get("media") or {}
+                        trk = media.get("track", "inbound")
+                        if trk == "outbound":
+                            continue
+                        if trk not in ("inbound", "", None):
+                            continue
+                        payload = media.get("payload")
+                        if not isinstance(payload, str):
+                            continue
+                        try:
+                            mulaw = base64.b64decode(payload)
+                        except Exception:
+                            continue
+                        pcm_done = buffer.add_mulaw(mulaw)
+                        if pcm_done:
+                            await _handle_utterance_pcm(pcm_done)
+                elif event == "stop":
+                    if call_sid:
+                        repo.update_telephony_call_status(
+                            db, call_sid=call_sid, status="stream_stopped"
+                        )
+                    if stt_on and mapped_session_id:
+                        pcm_done = buffer.flush()
+                        if pcm_done:
+                            await _handle_utterance_pcm(pcm_done)
+                    break
+            except Exception:
+                logger.exception(
+                    "twilio_media message handling failed call_sid=%s", call_sid or "unknown"
                 )
-                if not mapped_session_id and isinstance(custom, dict):
-                    mapped_session_id = custom.get("session_id", "") or mapped_session_id
-                if call_sid:
-                    row = repo.get_telephony_call_by_sid(db, call_sid)
-                    if row is not None:
-                        mapped_session_id = row.session_id
-                        repo.update_telephony_call_status(db, call_sid=call_sid, status="stream_started")
-            elif event == "media":
-                media_chunks += 1
-                if stt_on and mapped_session_id:
-                    media = msg.get("media") or {}
-                    trk = media.get("track", "inbound")
-                    if trk == "outbound":
-                        continue
-                    if trk not in ("inbound", "", None):
-                        continue
-                    payload = media.get("payload")
-                    if not isinstance(payload, str):
-                        continue
-                    try:
-                        mulaw = base64.b64decode(payload)
-                    except Exception:
-                        continue
-                    pcm_done = buffer.add_mulaw(mulaw)
-                    if pcm_done:
-                        await _handle_utterance_pcm(pcm_done)
-            elif event == "stop":
-                if call_sid:
-                    repo.update_telephony_call_status(db, call_sid=call_sid, status="stream_stopped")
-                if stt_on and mapped_session_id:
-                    pcm_done = buffer.flush()
-                    if pcm_done:
-                        await _handle_utterance_pcm(pcm_done)
-                break
     except WebSocketDisconnect:
         if stt_on and mapped_session_id:
             pcm_done = buffer.flush()

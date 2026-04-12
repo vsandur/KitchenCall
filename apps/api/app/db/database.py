@@ -15,7 +15,10 @@ def get_engine():
     if _engine is None:
         settings.database_path.parent.mkdir(parents=True, exist_ok=True)
         url = f"sqlite:///{settings.database_path.resolve()}"
-        _engine = create_engine(url, connect_args={"check_same_thread": False})
+        _engine = create_engine(
+            url,
+            connect_args={"check_same_thread": False, "timeout": 30},
+        )
     return _engine
 
 

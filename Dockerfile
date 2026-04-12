@@ -13,4 +13,4 @@ ENV KITCHENCALL_MENU_PATH=/app/data/menu.json
 ENV KITCHENCALL_DATABASE_PATH=/app/data/kitchencall.db
 
 EXPOSE 8000
-CMD ["/bin/sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["/bin/sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
