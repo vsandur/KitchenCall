@@ -91,12 +91,18 @@ def _transcribe_http(pcm: bytes) -> str | None:
 
 def _transcribe_faster_whisper(pcm: bytes) -> str | None:
     import tempfile
+    import time
+
     model = _get_whisper()
     if len(pcm) < 320:
         return None
-    # Whisper expects 16 kHz; our PCM is 8 kHz from Twilio.  Write a proper WAV
-    # with the correct sample-rate header so faster-whisper (via ffmpeg) resamples.
+    duration_s = len(pcm) / (8000 * 2)
+    logger.info("faster-whisper input: %.1f s (%d bytes PCM)", duration_s, len(pcm))
+    if duration_s < 0.3:
+        logger.info("faster-whisper: audio too short (%.1f s), skipping", duration_s)
+        return None
     wav_bytes = pcm16le_wav_bytes(pcm, sample_rate=8000)
+    t0 = time.monotonic()
     try:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as f:
             f.write(wav_bytes)
@@ -104,17 +110,19 @@ def _transcribe_faster_whisper(pcm: bytes) -> str | None:
             segments, _info = model.transcribe(
                 f.name,
                 language="en",
-                vad_filter=True,
+                vad_filter=False,
                 beam_size=1,
             )
             parts = [s.text.strip() for s in segments if s.text and s.text.strip()]
     except Exception:
         logger.exception("faster-whisper transcribe failed")
         return None
+    elapsed = time.monotonic() - t0
     if not parts:
+        logger.info("faster-whisper: no segments after %.1f s", elapsed)
         return None
     result = " ".join(parts).strip()
-    logger.info("faster-whisper result: %s", result[:200])
+    logger.info("faster-whisper result (%.1f s): %s", elapsed, result[:200])
     return result
 
 

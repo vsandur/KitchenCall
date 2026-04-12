@@ -28,6 +28,10 @@ def run_telephony_utterance(session_id: str, pcm16_8k_le: bytes) -> str | None:
         logger.exception("telephony STT failed session_id=%s", session_id)
         return None
     if not text or not text.strip():
+        logger.info(
+            "telephony STT returned empty for session_id=%s pcm_bytes=%d",
+            session_id, len(pcm16_8k_le),
+        )
         return None
     db = get_session_factory()()
     try:
