@@ -22,7 +22,7 @@ class _StubUtteranceBuffer:
     def add_mulaw(self, mulaw: bytes) -> bytes | None:
         self._n += 1
         if self._n == 1:
-            return b"\x01\x00" * 8000
+            return b"\x00\x10" * 8000
         return None
 
     def flush(self) -> bytes | None:

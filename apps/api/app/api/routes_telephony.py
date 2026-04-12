@@ -36,30 +36,18 @@ def _default_wait_message() -> str:
 
 
 def _ordering_greeting_twiml(*, restaurant_name: str) -> str:
-    """Spoken before Media Stream connects — warm intro + menu vs order choice."""
+    """Spoken before Media Stream connects — short intro so callers can speak quickly."""
     custom = (settings.twilio_voice_greeting or "").strip()
     if custom:
         welcome = escape(custom)
     else:
         name = (restaurant_name or "our restaurant").strip() or "our restaurant"
         welcome = escape(
-            f"Thanks for calling {name}. "
-            "We are really happy you chose us today."
+            f"Thanks for calling {name}! "
+            "Just tell me what you'd like to order, or say menu to hear our options. "
+            "Go ahead after the tone."
         )
-    offer = escape(
-        "If you would like to hear our menu, just say menu. "
-        "If you are ready to order, tell me what you would like — for example, "
-        "a large pepperoni pizza for pickup, or delivery if you prefer."
-    )
-    closer = escape("You will hear a short tone. Then go ahead and speak.")
-    return (
-        f'<Say voice="alice">{welcome}</Say>'
-        '<Pause length="1"/>'
-        f'<Say voice="alice">{offer}</Say>'
-        '<Pause length="1"/>'
-        f'<Say voice="alice">{closer}</Say>'
-        '<Pause length="1"/>'
-    )
+    return f'<Say voice="alice">{welcome}</Say><Pause length="1"/>'
 
 
 def _public_https_origin_from_stream_url() -> str:
@@ -327,6 +315,7 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
     stream_sid = ""
 
     from app.db.database import get_session_factory
+    from collections import deque
 
     db = get_session_factory()()
     buffer = UtteranceBuffer(
@@ -365,6 +354,16 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
             )
 
         pending_task: asyncio.Task | None = None
+        utterance_queue: deque[bytes] = deque(maxlen=3)
+
+        def _is_silence(pcm_done: bytes) -> bool:
+            """Skip buffers that are pure silence (below mu-law baseline)."""
+            from app.services.twilio_mulaw import rms_pcm16_le
+            rms = rms_pcm16_le(pcm_done)
+            if rms < 180.0:
+                logger.info("twilio_media skipping silent buffer rms=%.0f len=%d", rms, len(pcm_done))
+                return True
+            return False
 
         async def _handle_utterance_pcm(pcm_done: bytes) -> None:
             nonlocal stt_turns
@@ -399,12 +398,27 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                         call_sid or "unknown",
                     )
 
+        async def _drain_queue() -> None:
+            """Process one utterance, then drain any queued ones sequentially."""
+            nonlocal pending_task
+            while utterance_queue:
+                pcm = utterance_queue.popleft()
+                await _handle_utterance_pcm(pcm)
+            pending_task = None
+
         def _fire_utterance(pcm_done: bytes) -> None:
             nonlocal pending_task
-            if pending_task and not pending_task.done():
-                logger.info("twilio_media skipping utterance — previous STT still running")
+            if _is_silence(pcm_done):
                 return
-            pending_task = asyncio.create_task(_handle_utterance_pcm(pcm_done))
+            if pending_task and not pending_task.done():
+                utterance_queue.append(pcm_done)
+                logger.info(
+                    "twilio_media queued utterance (queue=%d) — previous STT still running",
+                    len(utterance_queue),
+                )
+                return
+            utterance_queue.append(pcm_done)
+            pending_task = asyncio.create_task(_drain_queue())
 
         while True:
             raw = await websocket.receive_text()
@@ -441,6 +455,18 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                         "twilio_media 'start' event: call_sid=%s stream_sid=%s session=%s custom=%s",
                         call_sid, stream_sid, mapped_session_id, custom,
                     )
+                    if mapped_session_id and repo.get_session_row(db, mapped_session_id):
+                        repo.append_transcript(
+                            db,
+                            mapped_session_id,
+                            role="system",
+                            text=(
+                                f"twilio_stream_started call_sid={call_sid} "
+                                f"stream_sid={stream_sid} stt={'on' if stt_on else 'off'} "
+                                f"tts={'on' if tts_on else 'off'}"
+                            ),
+                            is_partial=False,
+                        )
                 elif event == "media":
                     media_chunks += 1
                     if media_chunks in (1, 50, 200, 500):
@@ -480,10 +506,16 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                     "twilio_media message handling failed call_sid=%s", call_sid or "unknown"
                 )
     except WebSocketDisconnect:
+        logger.info("twilio_media WebSocketDisconnect call_sid=%s", call_sid or "unknown")
         if stt_on and mapped_session_id:
             pcm_done = buffer.flush()
             if pcm_done:
                 _fire_utterance(pcm_done)
+    except Exception:
+        logger.exception(
+            "twilio_media UNHANDLED exception call_sid=%s session=%s media_chunks=%d",
+            call_sid or "unknown", mapped_session_id or "none", media_chunks,
+        )
     finally:
         if pending_task and not pending_task.done():
             logger.info("twilio_media waiting for final STT task to complete…")
@@ -503,3 +535,7 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                 is_partial=False,
             )
         db.close()
+        logger.info(
+            "twilio_media handler exiting call_sid=%s session=%s chunks=%d turns=%d",
+            call_sid or "unknown", mapped_session_id or "none", media_chunks, stt_turns,
+        )
