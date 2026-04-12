@@ -1,3 +1,5 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,11 +12,15 @@ from app.api.routes_telephony import router as telephony_router
 from app.config import settings
 from app.db.database import init_db
 
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
-    # Pre-download/load the STT model so the first phone call isn't blocked
     from app.services.telephony_stt import warmup_stt
     warmup_stt()
     yield
