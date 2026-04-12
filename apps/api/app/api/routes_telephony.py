@@ -364,50 +364,47 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
                 is_partial=False,
             )
 
-        stt_lock = asyncio.Lock()
-        background_tasks: set[asyncio.Task] = set()
+        pending_task: asyncio.Task | None = None
 
         async def _handle_utterance_pcm(pcm_done: bytes) -> None:
             nonlocal stt_turns
-            async with stt_lock:
-                logger.info(
-                    "twilio_media utterance detected: %d bytes call_sid=%s session=%s",
-                    len(pcm_done), call_sid, mapped_session_id,
+            logger.info(
+                "twilio_media utterance detected: %d bytes (%.1f s) call_sid=%s session=%s",
+                len(pcm_done), len(pcm_done) / (8000 * 2),
+                call_sid, mapped_session_id,
+            )
+            try:
+                reply = await asyncio.to_thread(
+                    run_telephony_utterance, mapped_session_id, pcm_done
                 )
+            except Exception:
+                logger.exception(
+                    "twilio_media utterance handler failed call_sid=%s",
+                    call_sid or "unknown",
+                )
+                return
+            stt_turns += 1
+            logger.info(
+                "twilio_media STT turn #%d reply=%s call_sid=%s",
+                stt_turns,
+                repr(reply[:120]) if reply else "(empty)",
+                call_sid,
+            )
+            if reply and stream_sid and tts_on:
                 try:
-                    reply = await asyncio.to_thread(
-                        run_telephony_utterance, mapped_session_id, pcm_done
-                    )
+                    await push_assistant_speech(websocket, stream_sid, reply)
                 except Exception:
                     logger.exception(
-                        "twilio_media utterance handler failed call_sid=%s",
+                        "twilio_media TTS push failed call_sid=%s",
                         call_sid or "unknown",
                     )
-                    buffer.reset()
-                    return
-                stt_turns += 1
-                logger.info(
-                    "twilio_media STT turn #%d reply=%s call_sid=%s",
-                    stt_turns,
-                    repr(reply[:120]) if reply else "(empty)",
-                    call_sid,
-                )
-                buffer.reset()
-                if reply and stream_sid and tts_on:
-                    try:
-                        await push_assistant_speech(websocket, stream_sid, reply)
-                    except Exception:
-                        logger.exception(
-                            "twilio_media TTS push failed call_sid=%s",
-                            call_sid or "unknown",
-                        )
-                buffer.reset()
 
         def _fire_utterance(pcm_done: bytes) -> None:
-            """Schedule utterance processing without blocking the WS read loop."""
-            task = asyncio.create_task(_handle_utterance_pcm(pcm_done))
-            background_tasks.add(task)
-            task.add_done_callback(background_tasks.discard)
+            nonlocal pending_task
+            if pending_task and not pending_task.done():
+                logger.info("twilio_media skipping utterance — previous STT still running")
+                return
+            pending_task = asyncio.create_task(_handle_utterance_pcm(pcm_done))
 
         while True:
             raw = await websocket.receive_text()
@@ -488,8 +485,12 @@ async def twilio_media_bridge(websocket: WebSocket) -> None:
             if pcm_done:
                 _fire_utterance(pcm_done)
     finally:
-        for t in background_tasks:
-            t.cancel()
+        if pending_task and not pending_task.done():
+            logger.info("twilio_media waiting for final STT task to complete…")
+            try:
+                await asyncio.wait_for(pending_task, timeout=30.0)
+            except (asyncio.TimeoutError, Exception):
+                logger.warning("twilio_media final STT task timed out or failed")
         if mapped_session_id and repo.get_session_row(db, mapped_session_id):
             repo.append_transcript(
                 db,
