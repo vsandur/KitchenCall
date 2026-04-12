@@ -71,9 +71,19 @@ def test_twilio_inbound_stream_mode_includes_connect_stream() -> None:
     assert "<Connect><Stream" in r.text
     assert 'track="inbound_track"' in r.text
     assert 'Stream url="wss://example.test/twilio-media"' in r.text
+    assert "https://example.test/telephony/twilio/assets/phone-beep.wav" in r.text
+    assert "<Play>" in r.text
     assert 'Parameter name="session_id"' in r.text
     assert 'Parameter name="call_sid"' in r.text
     assert 'value="CASTREAM1"' in r.text
+
+
+def test_twilio_phone_beep_asset_served() -> None:
+    client = TestClient(app)
+    r = client.get("/telephony/twilio/assets/phone-beep.wav")
+    assert r.status_code == 200
+    assert r.headers.get("content-type", "").startswith("audio/")
+    assert len(r.content) > 100
 
 
 def test_twilio_inbound_sip_mode_includes_dial_sip() -> None:

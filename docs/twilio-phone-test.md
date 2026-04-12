@@ -119,7 +119,8 @@ Use one **public hostname** for both sides (e.g. `kitchencall-api-xxxx.onrender.
    | `KITCHENCALL_TWILIO_MEDIA_STREAM_URL` | `wss://YOUR-HOST/telephony/twilio/media` |
 
    Optional: `KITCHENCALL_CORS_ORIGINS` = your dashboard URL(s), comma-separated.  
-   Optional: `KITCHENCALL_TWILIO_STREAM_STT_BACKEND` = `faster_whisper` or `http` (with `KITCHENCALL_TWILIO_STT_HTTP_URL` if `http`). Default `off` = stream works but **no speech-to-cart** until you enable STT.
+   **Speech-to-cart:** the repo **Dockerfile** installs **faster-whisper**, **ffmpeg**, and **espeak-ng** and sets `KITCHENCALL_TWILIO_STREAM_STT_BACKEND=faster_whisper` by default. Override with `off` if you only want the stream without ordering, or `http` + `KITCHENCALL_TWILIO_STT_HTTP_URL` for an external STT service. On **small Render instances**, set `KITCHENCALL_TWILIO_WHISPER_MODEL=tiny` if the first utterance times out or the service restarts (model download + RAM).  
+   **Tone before listening:** TwiML plays `https://YOUR-HOST/telephony/twilio/assets/phone-beep.wav` (served by the API) right before `<Connect><Stream>`, so the caller hears a real beep after the greeting.
 
 4. **Save** env vars and **trigger a deploy** (or wait for auto-deploy).
 5. **Persistent disk (recommended):** **Settings → Disks** → mount path **`/app/data`** so SQLite survives restarts.

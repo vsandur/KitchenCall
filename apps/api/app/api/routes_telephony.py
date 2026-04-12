@@ -7,7 +7,8 @@ import logging
 from html import escape
 from urllib.parse import urlsplit, urlunsplit
 
-from fastapi import APIRouter, Depends, Form, Response, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Form, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -50,7 +51,7 @@ def _ordering_greeting_twiml(*, restaurant_name: str) -> str:
         "If you are ready to order, tell me what you would like — for example, "
         "a large pepperoni pizza for pickup, or delivery if you prefer."
     )
-    closer = escape("Whenever you are ready, go ahead and speak after the tone.")
+    closer = escape("You will hear a short tone. Then go ahead and speak.")
     return (
         f'<Say voice="alice">{welcome}</Say>'
         '<Pause length="1"/>'
@@ -59,6 +60,28 @@ def _ordering_greeting_twiml(*, restaurant_name: str) -> str:
         f'<Say voice="alice">{closer}</Say>'
         '<Pause length="1"/>'
     )
+
+
+def _public_https_origin_from_stream_url() -> str:
+    """Derive https://host for TwiML <Play> URLs from the configured wss media URL."""
+    raw = (settings.twilio_media_stream_url or "").strip()
+    if not raw:
+        return ""
+    u = urlsplit(raw)
+    if u.scheme == "wss" and u.netloc:
+        return f"https://{u.netloc}"
+    if u.scheme == "https" and u.netloc:
+        return f"https://{u.netloc}"
+    return ""
+
+
+def _pre_connect_beep_twiml() -> str:
+    """Short beep over HTTPS so the caller hears a real tone before the media stream."""
+    origin = _public_https_origin_from_stream_url()
+    if not origin:
+        return ""
+    beep_url = f"{origin}/telephony/twilio/assets/phone-beep.wav"
+    return f'<Play>{escape(beep_url, quote=True)}</Play><Pause length="1"/>'
 
 
 def _twilio_connect_stream_url() -> str:
@@ -88,6 +111,7 @@ def _bridge_twiml(*, session_id: str, call_sid: str, restaurant_name: str) -> st
         track = "inbound_track"
         return (
             _ordering_greeting_twiml(restaurant_name=restaurant_name)
+            + _pre_connect_beep_twiml()
             + (
                 f'<Connect><Stream url="{escape(stream_url, quote=True)}" track="{escape(track, quote=True)}">'
                 f'<Parameter name="session_id" value="{escape(session_id, quote=True)}" />'
@@ -105,6 +129,15 @@ def _bridge_twiml(*, session_id: str, call_sid: str, restaurant_name: str) -> st
         return _default_wait_message() + f"<Dial><Sip>{escape(settings.twilio_sip_uri)}</Sip></Dial>"
 
     return _default_wait_message()
+
+
+@router.get("/assets/phone-beep.wav")
+def twilio_phone_beep_asset() -> FileResponse:
+    """Short tone Twilio fetches over HTTPS (before <Connect><Stream>)."""
+    path = (settings.menu_path.parent / "phone_beep.wav").resolve()
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="phone_beep.wav missing")
+    return FileResponse(path, media_type="audio/wav", filename="phone-beep.wav")
 
 
 @router.post("/inbound")
