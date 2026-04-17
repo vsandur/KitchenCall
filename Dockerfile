@@ -1,5 +1,5 @@
-# Build from repository root (for Render when Root Directory is left blank).
-# apps/api/Dockerfile is the same layout but for context=apps/api (e.g. docker compose).
+# Cloud deploy (Render, Fly, etc.) — build context is repo root.
+# apps/api/Dockerfile is the same layout for context=apps/api (docker compose).
 FROM python:3.12-slim
 WORKDIR /app
 
@@ -14,8 +14,6 @@ COPY apps/api/data ./data
 
 ENV KITCHENCALL_MENU_PATH=/app/data/menu.json
 ENV KITCHENCALL_DATABASE_PATH=/app/data/kitchencall.db
-# Phone ordering: cloud STT (deepgram/openai) + ffmpeg/espeak TTS
-# Set KITCHENCALL_STT_API_KEY in Render env vars
 ENV KITCHENCALL_TWILIO_STREAM_STT_BACKEND=deepgram
 
 EXPOSE 8000

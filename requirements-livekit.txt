@@ -1,4 +1,0 @@
-# LiveKit voice room path (beyond browser SpeechRecognition).
-#
-# - Token minting: apps/api already includes `livekit-api` in requirements.txt
-# - Worker (STT/TTS + KitchenCall HTTP): pip install -r apps/agent/requirements.txt

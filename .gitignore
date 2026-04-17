@@ -1,14 +1,33 @@
+# macOS
 .DS_Store
 **/.DS_Store
 
+# Python
 .venv/
-apps/agent/.venv/
-.tmp-lk/
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage*
+htmlcov/
+
+# Secrets & local data
 .env
 *.sqlite3
 *.db
+
+# Node / web
 node_modules/
 apps/web/dist/
+
+# LiveKit
+apps/agent/.venv/
+.tmp-lk/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
