@@ -444,3 +444,30 @@ KitchenCall/
 - [oss-stack.md](./oss-stack.md) — OSS / local-first stack notes
 - [api-hosting.md](./api-hosting.md) — Deployment options
 - [twilio-phone-test.md](./twilio-phone-test.md) — Twilio call testing guide
+
+Great question. PersonaPlex gets the menu through its text prompt — the --text-prompt parameter you pass when launching the model. It's essentially the system prompt that defines the personality, menu, and ordering rules.
+
+But here's the honest limitation: PersonaPlex is a 7B model. It can hold a short menu in its prompt context, but it:
+
+Won't reliably remember prices if you add them
+Might invent items that aren't on the menu
+Can't do math (totaling an order accurately)
+Has no memory between calls — every call starts fresh from the prompt
+This is exactly why we have the dual-loop architecture. PersonaPlex doesn't need to be perfect — it just needs to sound natural. The shadow pipeline (Whisper + state engine + menu.json) is the real source of truth:
+
+Concern	Who handles it	How
+"What's on the menu?"
+PersonaPlex (from prompt)
+Recites items from text prompt
+"Add large pepperoni"
+PersonaPlex (conversational) + shadow pipeline (cart)
+PersonaPlex confirms naturally; Whisper extracts text → state engine validates against menu.json → adds to cart
+"What's my total?"
+Shadow pipeline only
+State engine computes from cart; PersonaPlex can't do this reliably
+"Do you have sushi?"
+PersonaPlex (from prompt)
+Says no — prompt says it's a pizza place. If it hallucinates "yes", the state engine rejects the item anyway
+So menu.json is the real menu. PersonaPlex's prompt is a simplified copy that makes conversation sound natural. If PersonaPlex gets something wrong, the state engine catches it.
+
+For a more robust version, you could feed PersonaPlex updated context mid-conversation (e.g., "the customer has ordered: large pepperoni, garlic knots"), but that requires deeper model integration. For the POC, the prompt-only approach is sufficient.

@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from typing import Literal
 
-# Orchestrator phases — see docs/architecture.md (session state machine).
+# Session lifecycle phase (persisted on KitchenSession.phase; aligned with state_engine.phase_from_state).
 SessionPhase = Literal[
     "greeting",
     "ordering",
     "collecting_missing_info",
     "confirming",
     "submitted",
-    "transfer_requested",
     "cancelled",
+    "transfer_requested",
 ]

@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     twilio_stream_tts_backend: str = "auto"
     # Spoken before <Connect><Stream> (TwiML Say). Empty = use built-in ordering script.
     twilio_voice_greeting: str = ""
+    # PersonaPlex speech-to-speech voice agent (dual-loop architecture)
+    personaplex_enabled: bool = False
+    personaplex_ws_url: str = "ws://localhost:8998/api/chat"
+    personaplex_voice: str = "NATF2"
+    personaplex_text_prompt: str = ""
+    # Send mu-law silence + marks until PersonaPlex produces audio (set false to debug playback).
+    twilio_pp_silence_keepalive: bool = True
+    # Enable immediate Twilio TTS greeting to mask PersonaPlex warmup delay
+    twilio_pp_immediate_greeting: bool = False
+    # If > 0, play this many ms of test tone after Media Stream `start` (confirms outbound path).
+    twilio_pp_debug_tone_ms: int = 0
+    # Cap menu+instructions sent as PersonaPlex query param (long URLs break WS upgrades / proxies).
+    personaplex_prompt_max_chars: int = 3500
+
     # Transcript → actions: "rules" (default, zero cost) or "llm" / "openai" (synonym) for
     # OpenAI-compatible HTTP API — default URL is local Ollama (see docs/oss-stack.md).
     logic_extractor: str = "rules"

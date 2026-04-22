@@ -1,12 +1,52 @@
 {
-  "restaurant_name": "Mario's Pizza",
+  "restaurant_name": "Sandur's Pizza",
   "items": {
+    "pizza_margherita": {
+      "id": "pizza_margherita",
+      "name": "Margherita",
+      "category": "pizza",
+      "description": "Classic Italian pizza with tomato, mozzarella, basil",
+      "sizes": ["small", "medium", "large"],
+      "modifiers_available": ["extra cheese", "well done"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
     "pizza_pepperoni": {
       "id": "pizza_pepperoni",
       "name": "Pepperoni Pizza",
       "category": "pizza",
       "sizes": ["small", "medium", "large"],
-      "modifiers_available": ["extra cheese", "light sauce", "well done", "no olives"],
+      "modifiers_available": ["extra cheese", "light sauce", "well done"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pizza_quattro_formaggi": {
+      "id": "pizza_quattro_formaggi",
+      "name": "Quattro Formaggi",
+      "category": "pizza",
+      "description": "Four cheese Italian pizza - mozzarella, gorgonzola, parmesan, fontina",
+      "sizes": ["small", "medium", "large"],
+      "modifiers_available": ["extra cheese", "well done"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pizza_diavola": {
+      "id": "pizza_diavola",
+      "name": "Diavola",
+      "category": "pizza",
+      "description": "Spicy Italian salami, hot peppers, tomato, mozzarella",
+      "sizes": ["small", "medium", "large"],
+      "modifiers_available": ["extra cheese", "extra spicy", "well done"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pizza_capricciosa": {
+      "id": "pizza_capricciosa",
+      "name": "Capricciosa",
+      "category": "pizza",
+      "description": "Italian classic with ham, mushrooms, artichokes, olives",
+      "sizes": ["small", "medium", "large"],
+      "modifiers_available": ["extra cheese", "no olives", "well done"],
       "modifier_groups": [],
       "unavailable": false
     },
@@ -16,6 +56,76 @@
       "category": "pizza",
       "sizes": ["small", "medium", "large"],
       "modifiers_available": ["extra cheese", "light sauce", "well done"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pasta_carbonara": {
+      "id": "pasta_carbonara",
+      "name": "Carbonara",
+      "category": "pasta",
+      "description": "Classic Roman pasta with eggs, pecorino, guanciale",
+      "sizes": [],
+      "modifiers_available": ["extra cheese", "extra black pepper"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pasta_bolognese": {
+      "id": "pasta_bolognese",
+      "name": "Spaghetti Bolognese",
+      "category": "pasta",
+      "description": "Traditional meat sauce with spaghetti",
+      "sizes": [],
+      "modifiers_available": ["extra parmesan"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pasta_arrabbiata": {
+      "id": "pasta_arrabbiata",
+      "name": "Penne Arrabbiata",
+      "category": "pasta",
+      "description": "Spicy tomato sauce with garlic and chili",
+      "sizes": [],
+      "modifiers_available": ["extra spicy", "add chicken"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "pasta_alfredo": {
+      "id": "pasta_alfredo",
+      "name": "Fettuccine Alfredo",
+      "category": "pasta",
+      "description": "Creamy parmesan sauce",
+      "sizes": [],
+      "modifiers_available": ["add chicken", "add shrimp"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "appetizer_bruschetta": {
+      "id": "appetizer_bruschetta",
+      "name": "Bruschetta",
+      "category": "appetizers",
+      "description": "Toasted bread with tomatoes, basil, garlic",
+      "sizes": ["4 piece", "8 piece"],
+      "modifiers_available": ["extra garlic"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "appetizer_arancini": {
+      "id": "appetizer_arancini",
+      "name": "Arancini",
+      "category": "appetizers",
+      "description": "Sicilian rice balls with meat ragu",
+      "sizes": ["3 piece", "6 piece"],
+      "modifiers_available": ["extra marinara"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "appetizer_caprese": {
+      "id": "appetizer_caprese",
+      "name": "Caprese Salad",
+      "category": "appetizers",
+      "description": "Fresh mozzarella, tomatoes, basil, balsamic",
+      "sizes": [],
+      "modifiers_available": ["add prosciutto"],
       "modifier_groups": [],
       "unavailable": false
     },
@@ -37,21 +147,31 @@
       "modifier_groups": [],
       "unavailable": false
     },
-    "burger_classic": {
-      "id": "burger_classic",
-      "name": "Classic Burger",
-      "category": "mains",
-      "sizes": ["single", "double"],
-      "modifiers_available": ["no onions", "add bacon", "no pickles"],
+    "drink_sprite": {
+      "id": "drink_sprite",
+      "name": "Sprite",
+      "category": "drinks",
+      "sizes": ["can", "20oz"],
+      "modifiers_available": [],
       "modifier_groups": [],
       "unavailable": false
     },
-    "sandwich_chicken": {
-      "id": "sandwich_chicken",
-      "name": "Chicken Sandwich",
-      "category": "mains",
-      "sizes": [],
-      "modifiers_available": ["no mayo", "add hot sauce"],
+    "drink_italian_soda": {
+      "id": "drink_italian_soda",
+      "name": "Italian Soda",
+      "category": "drinks",
+      "description": "Sparkling water with fruit syrup",
+      "sizes": ["regular"],
+      "modifiers_available": ["lemon", "raspberry", "peach"],
+      "modifier_groups": [],
+      "unavailable": false
+    },
+    "drink_water": {
+      "id": "drink_water",
+      "name": "Water",
+      "category": "drinks",
+      "sizes": ["bottle"],
+      "modifiers_available": [],
       "modifier_groups": [],
       "unavailable": false
     }

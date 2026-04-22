@@ -1,2 +1,2 @@
--r requirements.txt
-pytest>=8.0.0
+# Dev / test (optional). Py3.14 may need a recent pytest; upgrade if `pytest` fails to import.
+pytest>=8.3.5

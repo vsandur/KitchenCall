@@ -35,6 +35,14 @@ This runbook assumes you use **Twilio** for PSTN and the API’s **Media Streams
 
 4. **STT** — set `KITCHENCALL_TWILIO_STREAM_STT_BACKEND=faster_whisper` (or `http` with your transcribe endpoint).
 
+### Twilio says “We’re sorry, an application error has occurred”
+
+That is Twilio’s generic message when the **voice webhook** fails (timeout, connection error, or non-2xx). Typical causes:
+
+1. **Stale tunnel URL** — ngrok / Cloudflare Quick Tunnels change hostname when you restart them. Update **both** the Twilio number’s webhook and `KITCHENCALL_TWILIO_MEDIA_STREAM_URL` to the **same** new `https://…` / `wss://…` host, then restart uvicorn.
+2. **API not running** or firewall blocking Twilio.
+3. **Quick check** — open `https://<your-public-host>/telephony/twilio/debug-status` in a browser; if it does not load, Twilio cannot reach your webhook either.
+
 ## “Creating an API” on the Twilio website — what that means
 
 **KitchenCall is your API** (FastAPI on your host). Twilio does **not** host that logic.
@@ -102,6 +110,12 @@ Set these (see `apps/api/.env.example` for all names):
 | `KITCHENCALL_TWILIO_VOICE_GREETING` | Optional; empty uses built-in ordering intro before the stream |
 
 Start the API (e.g. `uvicorn` on the port your tunnel forwards).
+
+### PersonaPlex (optional natural voice)
+
+If `KITCHENCALL_PERSONAPLEX_ENABLED=true`, run PersonaPlex-MLX locally (see `apps/personaplex/`; default WebSocket `ws://localhost:8998/api/chat`). **Restart the PersonaPlex process after you pull changes that touch `apps/personaplex/`** (for example `personaplex_mlx/local_web.py`). Restarting only the KitchenCall API does not reload that server.
+
+**Sanity check (no phone):** From the repo root, run **`./poc/scripts/verify_phone_stack.sh http://127.0.0.1:8000`** (or your public base URL). The script hits **`/health`**, **`/telephony/twilio/debug-status`**, and **`/telephony/twilio/personaplex-probe`**. For **`personaplex-probe`**, you want **`ok: true`** and **`handshake_first_byte: 0`**. If you see **HTTP 400** / handshake errors, fix **PersonaPlex** (e.g. missing voice `NATF2.pt` under the voices directory) and **restart the PersonaPlex process** so **`apps/personaplex/personaplex_mlx/local_web.py`** is current. If the probe says the socket closed before handshake, another session may be holding the model lock — stop other PersonaPlex clients or set **`PERSONAPLEX_LOCK_ACQUIRE_TIMEOUT`** (seconds) on the PersonaPlex process. If prompts are huge, trim the menu or adjust **`KITCHENCALL_PERSONAPLEX_PROMPT_MAX_CHARS`** (very long URLs can break the WebSocket upgrade).
 
 ## Checklist — Render (host) vs Twilio (phone)
 

@@ -10,7 +10,7 @@ from app.db.database import get_session_factory
 from app.services.logic_loop import is_affirmation
 from app.services.menu_catalog import MenuCatalog
 from app.services.session_finalize import finalize_session_core
-from app.services.session_turn import execute_process_turn
+from app.services.orchestrator import process_user_final_text
 from app.services.telephony_stt import transcribe_pcm16_8k
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def run_telephony_utterance(session_id: str, pcm16_8k_le: bytes) -> str | None:
             return None
         catalog = MenuCatalog.load(settings.menu_path)
         norm = text.strip()
-        _cart, _errors, _intents, _xfer, assistant_response = execute_process_turn(
+        _cart, _errors, _intents, _xfer, assistant_response = process_user_final_text(
             db, session_id, norm, catalog
         )
         logger.info("telephony_stt_turn session_id=%s text=%s", session_id, text[:240])

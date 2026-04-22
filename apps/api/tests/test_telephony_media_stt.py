@@ -45,6 +45,7 @@ def test_media_stream_with_stt_runs_process_turn(monkeypatch) -> None:
     )
     monkeypatch.setattr(settings, "twilio_stream_stt_backend", "faster_whisper", raising=False)
     monkeypatch.setattr(settings, "twilio_stream_tts_backend", "off", raising=False)
+    monkeypatch.setattr(settings, "personaplex_enabled", False, raising=False)
     monkeypatch.setattr("app.api.routes_telephony.push_assistant_speech", _noop_push)
 
     client = TestClient(app)
@@ -78,6 +79,7 @@ def test_media_stream_yes_while_confirming_finalizes_order(monkeypatch) -> None:
     )
     monkeypatch.setattr(settings, "twilio_stream_stt_backend", "faster_whisper", raising=False)
     monkeypatch.setattr(settings, "twilio_stream_tts_backend", "off", raising=False)
+    monkeypatch.setattr(settings, "personaplex_enabled", False, raising=False)
     monkeypatch.setattr("app.api.routes_telephony.push_assistant_speech", _noop_push)
 
     client = TestClient(app)

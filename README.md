@@ -26,7 +26,19 @@ Human-like restaurant phone ordering POC: **natural conversation** with a **dete
 | [docs/twilio-phone-test.md](docs/twilio-phone-test.md) | **Call your Twilio number** — PSTN test runbook (ngrok, env, ffmpeg) |
 | [docs/api-hosting.md](docs/api-hosting.md) | **Host the API** — laptop+tunnel vs VPS+Docker vs PaaS (Twilio / WSS / SQLite) |
 
-## Run locally
+## Quick Start
+
+**For Twilio phone calls + PersonaPlex + full stack:**
+
+```bash
+./start-services.sh
+```
+
+See **[QUICKSTART.md](./QUICKSTART.md)** for complete setup and Twilio configuration.
+
+---
+
+## Run locally (manual / dev mode)
 
 ### 1. API
 

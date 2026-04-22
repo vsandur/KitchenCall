@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 
 from sqlalchemy import create_engine
@@ -7,37 +9,36 @@ from app.config import settings
 from app.db.base import Base
 
 _engine = None
-_SessionLocal = None
-
-
-def get_engine():
-    global _engine
-    if _engine is None:
-        settings.database_path.parent.mkdir(parents=True, exist_ok=True)
-        url = f"sqlite:///{settings.database_path.resolve()}"
-        _engine = create_engine(
-            url,
-            connect_args={"check_same_thread": False, "timeout": 30},
-        )
-    return _engine
-
-
-def get_session_factory():
-    global _SessionLocal
-    if _SessionLocal is None:
-        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
-    return _SessionLocal
+_SessionLocal: sessionmaker[Session] | None = None
 
 
 def init_db() -> None:
-    from app.db import models  # noqa: F401
+    global _engine, _SessionLocal
+    if _engine is not None:
+        return
+    settings.database_path.parent.mkdir(parents=True, exist_ok=True)
+    url = f"sqlite:///{settings.database_path}"
+    _engine = create_engine(url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=_engine)
+    _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
 
-    Base.metadata.create_all(bind=get_engine())
+
+def get_engine():
+    if _engine is None:
+        init_db()
+    return _engine
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    if _SessionLocal is None:
+        init_db()
+    assert _SessionLocal is not None
+    return _SessionLocal
 
 
 def get_db() -> Generator[Session, None, None]:
-    SessionLocal = get_session_factory()
-    db = SessionLocal()
+    factory = get_session_factory()
+    db = factory()
     try:
         yield db
     finally:
